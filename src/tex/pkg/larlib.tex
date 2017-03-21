@@ -1,0 +1,31 @@
+\documentclass[11pt]{book}
+\usepackage{hyperref}
+
+\title{LAR in Julia \\ \small Literate programming approach}
+\date{\today}
+
+\begin{document}
+\maketitle
+\newpage
+
+\section{Testing nuweb}
+Now we are testing nuweb by doing a simple Julia script. Here the structure of the script:
+@O lib/jl/test.jl
+@{# This a test in Julia
+@< Do some calculations @>
+@< Print result @>
+@}
+
+Now some calculations:
+@D Do some calculations
+@{var = 7 * 6
+@}
+
+And print the result on standard output:
+@D Print result
+@{println("Result: ", var)
+@}
+
+Good, it seems to work fine.
+
+\end{document}
