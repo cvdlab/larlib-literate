@@ -5,34 +5,31 @@ SRC_DIR = ./src/tex
 DOC_DIR = ./doc
 PDF_DIR = $(DOC_DIR)/pdf
 
-LIB_DIR = ./lib/jl
+CODE_DIR = ./lib/jl
 
-PKG_DIR = $(SRC_DIR)/pkg
-PKG_NAME = larlib
+LIB_SRC_DIR = $(SRC_DIR)/pkg
+LIB_SRC_NAME_DIR = larlib
 
-all:
-	make pkg
+all: lib
 
-pkg:
-	make pkg_pdf
-	make pkg_clean
+lib: lib_pdf lib_clean
 
-pkg_code:
-	cp $(PKG_DIR)/$(PKG_NAME).tex $(PKG_NAME).w
-	nuweb $(PKG_NAME).w
+lib_code:
+	cp $(LIB_SRC_DIR)/$(LIB_SRC_NAME_DIR).tex $(LIB_SRC_NAME_DIR).w
+	nuweb $(LIB_SRC_NAME_DIR).w
 
-pkg_pdf: $(PKG_DIR)/$(PKG_NAME).tex
-	make pkg_code
+lib_pdf: $(LIB_SRC_DIR)/$(LIB_SRC_NAME_DIR).tex
+	make lib_code
 	
-	pdflatex $(PKG_NAME).tex
-	nuweb $(PKG_NAME).w
-	pdflatex $(PKG_NAME).tex
+	pdflatex $(LIB_SRC_NAME_DIR).tex
+	nuweb $(LIB_SRC_NAME_DIR).w
+	pdflatex $(LIB_SRC_NAME_DIR).tex
 	
-pkg_clean:
-	-mv -fv $(PKG_NAME).pdf $(PDF_DIR)
-	-rm -v $(PKG_NAME).*
+lib_clean:
+	-mv -fv $(LIB_SRC_NAME_DIR).pdf $(PDF_DIR)
+	-rm -v $(LIB_SRC_NAME_DIR).*
 	
 clean:
-	make pkg_clean
-	-rm -R $(LIB_DIR)/*
+	make lib_clean
+	-rm -R $(CODE_DIR)/*
 	-rm -R $(PDF_DIR)/*
