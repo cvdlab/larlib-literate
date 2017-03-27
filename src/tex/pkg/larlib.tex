@@ -10,10 +10,12 @@
 
 \section{Testing nuweb}
 Now we are testing nuweb by doing a simple Julia script. Here the structure of the script:
-@O lib/jl/test.jl
+@O lib/jl/LARLIB.jl
 @{# This a test in Julia
+module LARLIB
 @< Do some calculations @>
 @< Print result @>
+end
 @}
 
 Now some calculations:
