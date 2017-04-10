@@ -18,19 +18,21 @@ all: lib
 lib: lib_pdf lib_clean
 
 lib_code:
-	cp $(LIB_SRC_DIR)/$(LIB_SRC_NAME_DIR).tex $(LIB_SRC_NAME_DIR).w
-	nuweb $(LIB_SRC_NAME_DIR).w
+	cp $(LIB_SRC_DIR)/*.tex ./
+	for f in *.tex; do mv -- "$$f" "$${f%.tex}.w"; done
+	nuweb -n *.w
 
-lib_pdf: $(LIB_SRC_DIR)/$(LIB_SRC_NAME_DIR).tex
+lib_pdf: $(LIB_SRC_DIR)/*.tex
 	make lib_code
 	
-	pdflatex $(LIB_SRC_NAME_DIR).tex
-	nuweb $(LIB_SRC_NAME_DIR).w
-	pdflatex $(LIB_SRC_NAME_DIR).tex
+	for f in *.tex; do pdflatex $$f; done
+	nuweb -n *.w
+	for f in *.tex; do pdflatex $$f; done
+	for f in *.tex; do pdflatex $$f; done
 	
 lib_clean:
-	-mv -fv $(LIB_SRC_NAME_DIR).pdf $(PDF_DIR)
-	-rm -v $(LIB_SRC_NAME_DIR).*
+	-mv -fv *.pdf $(PDF_DIR)
+	-rm -v *.tex *.w *.aux *.log *.out
 	
 test:
 
@@ -48,5 +50,6 @@ pkg: lib test
 
 clean: lib_clean
 	-rm -R $(CODE_DIR)/*
+	-rm -R $(TEST_DIR)/*
 	-rm -R $(PDF_DIR)/*
 	-rm -Rf $(PKG_DIR)
