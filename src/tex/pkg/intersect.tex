@@ -1,5 +1,6 @@
 \documentclass[10pt,oneside]{article}
 \usepackage{hyperref}
+\hypersetup{colorlinks = true}
 
 \author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
 \title{Cells intersections
@@ -125,6 +126,14 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Segment intersection}
+\label{seg_intersection}
+Here is presented a basic segment intersection function.
+It is based on the method presented here: \url{http://paulbourke.net/geometry/pointlineplane/}.
+The function works only if $d=2$ and the cells are edges.
+If there is an intersection, it returns a \texttt{Tuple\{Float64,Verts\}} where 
+the \texttt{Float64} is the parameter of the intersection and the \texttt{Verts} 
+is the approximate point of intersection. \\
+\texttt{false} is returned in case of no intersection.
 @D Segment intersection
 @{function seg_intersection(V, CV, cell1, cell2)
     x1,x2,y1,y2 = V[CV[cell1], :]
@@ -144,6 +153,10 @@ end
 @}
 
 \section{Segment fragmentation}
+In this function are computed the intersection of every segment in the 
+cellular complex passed as argument. For every cell, this function returns a
+\texttt{Dict} that associates the intersect cell index to the \texttt{Tuple}
+returned by the \hyperref[seg_intersection]{\texttt{seg\_intersection}} function.
 @D Segment fragmentation
 @{function seg_fragmentation(V, CV)
     DictType = Dict{Int64, Tuple{Float64, Verts}}
@@ -157,7 +170,7 @@ end
         for inter_c in sindex[ci]
             intersection = seg_intersection(V,CV,ci,inter_c)
             if intersection != false
-                assoc[ci] = intersection
+                assoc[inter_c] = intersection
             end
         end
         frags[ci] = assoc
@@ -170,11 +183,12 @@ end
 \section{Testing}
 @O test/jl/intersect.jl
 @{using Base.Test
-include("../src/intersect.jl")
+include("../../lib/jl/intersect.jl")
 
 Xs = (
-    [[[0 0];[2 0];[2 2];[0 2]],[[1,2],[3,4]]],
-    [[[1 5];[3 1];[3 3];[1 3]],[[1,2],[3,4]]]
+    [[[1 2];[2 2]],[[1,2]]],
+    [[[2 1];[.5 4]],[[1,2]]],
+    [[[3 1];[1.5 4]],[[1,2]]]
 )
 
 @< Skeletal union tests @>
@@ -186,15 +200,15 @@ Xs = (
 @D Skeletal union tests
 @{V,CV = skel_union(Xs)
 @@testset "skel_union tests" begin
-    @@test V == [[0 0];[2 0];[2 2];[0 2];[1 5];[3 1];[3 3];[1 3]]
-    @@test CV == [[1,2],[3,4],[5,6],[7,8]]
+    @@test V == [[1 2];[2 2];[2 1];[.5 4];[3 1];[1.5 4]]
+    @@test CV == [[1,2],[3,4],[5,6]]
 end
 @}
 @D Bounding box tests
 @{lower, upper = bbox(V, CV[3])
 @@testset "bbox tests" begin
-    @@test lower == [1 1]
-    @@test upper == [3 5]
+    @@test lower == [1.5 1]
+    @@test upper == [3 4]
 end
 @}
 @D Spatial index test
@@ -213,7 +227,7 @@ end
 @{frags = seg_fragmentation(V, CV)
 T = Dict{Int64,Tuple{Float64,Array{Float64,2}}}
 @@testset "seg_fragmentation test" begin
-    @@test frags == [T(1=>(0.5,[1.5 2.0])); T(2=>(1/3,[1.5 2.0])); T()]
+    @@test frags == [T(2=>(0.5,[1.5 2.0])); T(1=>(1/3,[1.5 2.0])); T()]
 end
 @}
 \end{document}
