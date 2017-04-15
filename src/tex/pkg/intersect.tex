@@ -13,6 +13,7 @@
 
 %%%%%%%%%%%%%%%%%%
 \section{Overview}
+%%%%%%%%%%%%%%%%%%
 The \texttt{intersect.jl} script file contains a set of functions to perform intersection
 operations on multiple cellular complexes of dimension $d$.
 @O lib/jl/intersect.jl
@@ -22,10 +23,12 @@ operations on multiple cellular complexes of dimension $d$.
 @< Compute spatial index @>
 @< Segment intersection @>
 @< Segment fragmentation @>
+@< Vertices merge @>
 @}
 We define some type aliases to define the default vay to store data.
 Please note that we use the Julia's default CSC sparse matrices implementation
 to store cells.
+%####################%
 @D Imports and aliases
 @{typealias Verts Array{Float64,2}
 typealias Cells SparseMatrixCSC{Int8,Int64}
@@ -34,10 +37,12 @@ typealias Cell SparseVector{Int8,Int64}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Combinatorial union of $(d-1)$-cells}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 This function converts cellular complexes into a bidimensional array \texttt{V} of 
 vertices and a CSC sparse matrix \texttt{CV} of cells. The input must be an array of complexes
 in which the vertices are expressed as a bidimensional array and the cells as a BRC
 sparse matrix.
+%###############%
 @D Skeletal union
 @{function skel_union(Xs)
     d = size(Xs[1][1], 2)
@@ -46,6 +51,7 @@ sparse matrix.
     V,CV
 end
 @}
+%####################################%
 @D Compute V and the BRC sparse matrix
 @{V = Verts(0,d)
 BRC = Array{Array{Int64, 1}, 1}()
@@ -54,6 +60,7 @@ for h = 1:size(Xs,1)
     V = vcat(V, Xs[h][1])
 end
 @}
+%################################%
 @D Build CV, the CSC sparse matrix
 @{n = length(BRC)
 m = size(V,1)
@@ -69,8 +76,10 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Cell bounding boxes}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 The function to compute the bounding box of a cell
 is pretty straightforward.
+%#########################%
 @D Bounding box computation
 @{function bbox(V::Verts, cell::Cell)
     d = size(V,2)
@@ -88,15 +97,17 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Spatial index computation}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 The aim of this function is to compute a \textit{spatial index} that maps
 each cell to a set of cells which it may collide with.
 This is achieved by profuse use of bounding boxes and interval trees. 
-These last ones are implemented with the IntervalTrees library
+These last ones are implemented with the \texttt{IntervalTrees.jl} package
 (\url{https://github.com/BioJulia/IntervalTrees.jl})
+%####################%
 @D Imports and aliases
 @{using IntervalTrees
 @}
-
+%######################%
 @D Compute spatial index
 @{function spatial_index(V::Verts, CV::Cells)
     d = size(V,2)
@@ -110,6 +121,7 @@ The basic idea is to "unfold" every $d$-dimensional bounding box into $d$ one-di
 To do so, one interval tree per dimension must be created. 
 We build the $d$-trees by firstly building the intervals for each box and then the trees.
 In this way we keep in memory the \texttt{boxes1D} array (which contains the intervals) for later use.
+%##########################%
 @D Build the d-IntervalTrees
 @{IntervalsType = IntervalValue{Float64, Int64}
 boxes1D = Array{IntervalsType, 2}(0, d)
@@ -123,6 +135,7 @@ The \textit{spatial index} is returned as an array of \texttt{Int64} arrays.
 The \texttt{intersect\_intervals} function returns every cell of which its bounding box collides with 
 the $d$-intervals passed as argument. This function then is called for the $d$-intervals (stored in the \texttt{boxes1D} array) of every cell.
 Obviously every cell collides with itself, so a set difference is performed for every cell to exclude itself from the mapping.
+%###################%
 @D Create the mapping
 @{function intersect_intervals(intervals)
     cells = Array{Int64,1}[]
@@ -142,6 +155,7 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Segment intersection}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \label{seg_intersection}
 Here is presented a basic segment intersection function.
 It is based on the method presented here: \url{http://paulbourke.net/geometry/pointlineplane/}.
@@ -150,6 +164,7 @@ If there is an intersection, it returns a \texttt{Tuple\{Float64,Verts\}} where
 the \texttt{Float64} is the parameter of the intersection and the \texttt{Verts} 
 is the approximate point of intersection. \\
 \texttt{false} is returned in case of no intersection.
+%#####################%
 @D Segment intersection
 @{function seg_intersection(V::Verts, cell1::Cell, cell2::Cell)
     x1, y1, x2, y2 = vcat(map(c->V[c, :], cell1.nzind)...)
@@ -168,10 +183,13 @@ is the approximate point of intersection. \\
 end
 @}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Segment fragmentation}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 This function computes the cellular complex after performing the intersection of the \texttt{sigma} edge 
 with the \texttt{sigma\_int} edges.
 \texttt{alphas}, \texttt{vertsnum} and \texttt{cellsnum} are variables used through all the function.
+%######################%
 @D Segment fragmentation
 @{function seg_fragmentation(V::Verts, EV::Cells, sigma::Cell, sigma_int::Cells)
     alphas = Dict{Float64, Int64}()
@@ -187,6 +205,7 @@ For each cell in \texttt{sigma\_int} are computed the intersections with \texttt
 the \hyperref[seg_intersection]{\texttt{seg\_intersection}} function. The intersection point is
 stored in \texttt{V} and the parameter is coupled to the index of the newly computed vertex into 
 the \texttt{alphas} dictionary.
+%##########################%
 @D Compute the intersections
 @{for cell in 1:size(sigma_int, 1)
     inters = seg_intersection(V, sigma, sigma_int[cell, :])
@@ -198,17 +217,18 @@ the \texttt{alphas} dictionary.
 end
 @}
 The \texttt{EV} matrix must be widened to fit the new vertices and the cells derived from 
-the fragmentation of \texttt{sigma}. Then we sort and iterate over the key set of \texttt{alphas}
+the fragmentation of \texttt{sigma}. We sort and iterate over the key set of \texttt{alphas}
 to fill the empty cells of \texttt{EV} just generated. As previously stated, \texttt{alphas} maps 
 the parameters of the intersections to the indices of the new vertices, so the sorting of the keys 
 is important to create coherent and consecutive cells.
+%####################%
 @D Add new cells to EV
-@{nvertsnum = size(V, 1)
+@{alphaskeys = sort(collect(keys(alphas)))
+alphasnum = length(alphaskeys)
+nvertsnum = size(V, 1)
+
 EV = hcat(EV, spzeros(Int8, cellsnum, nvertsnum-vertsnum))
 EV = vcat(EV, spzeros(Int8, alphasnum+1, nvertsnum))
-
-alphaskeys = sort(collect(keys(alphas)))
-alphasnum = length(alphaskeys)
 for a in 1:alphasnum
     if a == 1
         EV[cellsnum+1, sigma.nzind[1]] = 1
@@ -226,13 +246,68 @@ end
 At last we delete \texttt{sigma} from EV. More than one repetition of sigma can 
 be stored into EV. Here is safe to delete only the first occurrence because the 
 others will be deleted on the other calls of this function.
+%#####################%
 @D Delete sigma from EV
 @{todel = intersect(map(col->EV[:, col].nzind, sigma.nzind)...)[1]
 EV = vcat(EV[1:todel-1, :], EV[todel+1:end, :])
 @}
 
+%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Vertices merge}
+%%%%%%%%%%%%%%%%%%%%%%%%
+We import the \texttt{NearestNeighbors.jl} package that provides a good implementation of
+the \texttt{KDTree} data structure. 
+(\url{https://github.com/KristofferC/NearestNeighbors.jl}).
+%####################%
+@D Imports and aliases
+@{using NearestNeighbors
+@}
+%###############%
+@D Vertices merge
+@{function merge_vertices(V::Verts, EV::Cells, e=10^-10.)
+    kdtree = KDTree(V')
+    tocheck = collect(size(V,1):-1:1)
+    todelete = Array{Int64, 1}()
+    @< Iterate over tocheck @>
+    @< Delete vertices in todelete @>
+    V,EV
+end
+@}
+We create two stacks: \texttt{tocheck} which contains the indices of the vertices
+to check and \texttt{todelete} that stores the indices of the vertices to delete later.
+Into \texttt{tocheck} we put all the vertices of the complex in reverse order, because
+this way we can pop from the stack the indices in order. So, until \texttt{tocheck} is not empty,
+we pop a vertex \texttt{vi} from the stack and for each coincident vertex \texttt{vj}, we put it 
+into the \texttt{todelete} stack and we sum the columns of \texttt{EV} that points to \texttt{vi} and \texttt{vj}
+%#####################%
+@D Iterate over tocheck 
+@{while !isempty(tocheck)
+    vi = pop!(tocheck)
+    if !(vi in todelete)
+        nearvs = inrange(kdtree, V[vi, :], e)
+        for vj in nearvs
+            if vj != vi
+                push!(todelete, vj)
+                EV[:,vi] = EV[:, vi] + EV[:, vj]
+            end
+        end
+    end
+end
+@}
+At last we simply delete the vertices from the \texttt{V} and their 
+corresponding columns of \texttt{EV}.
+%####################%
+@D Delete vertices in todelete
+@{while !isempty(todelete)
+    vi = pop!(todelete)
+    EV = hcat(EV[:, 1:vi-1], EV[:, vi+1:end])
+    V = vcat(V[1:vi-1, :], V[vi+1:end, :])
+end
+@}
+
 %%%%%%%%%%%%%%%%%
 \section{Testing}
+%%%%%%%%%%%%%%%%%
 @O test/jl/intersect.jl
 @{using Base.Test
 include("../../lib/jl/intersect.jl")
@@ -244,15 +319,17 @@ Xs = (
     [[[1.5 1];[2.5 3]],[[1,2]]]
 )
 
-@< Skeletal union tests @>
-@< Bounding box tests @>
+@< Skeletal union test @>
+@< Bounding box test @>
 @< Spatial index test @>
 @< Segment intersection test @>
 @< Segment fragmentation test @>
+@< Vertices merge test @>
 @}
-@D Skeletal union tests
+%####################%
+@D Skeletal union test
 @{V,CV = skel_union(Xs)
-@@testset "skel_union tests" begin
+@@testset "skel_union test" begin
     @@test V == [[1 2];[3 2];[1 3];[2 1];[2 3];[3 1];[1.5 1];[2.5 3]]
     @@test full(CV) == [
         [1 1 0 0 0 0 0 0]
@@ -262,25 +339,29 @@ Xs = (
     ]
 end
 @}
-@D Bounding box tests
+%##################%
+@D Bounding box test
 @{lower, upper = bbox(V, CV[2, :])
-@@testset "bbox tests" begin
+@@testset "bbox test" begin
     @@test lower == [1 1]
     @@test upper == [2 3]
 end
 @}
+%###################%
 @D Spatial index test
 @{mapping = spatial_index(V,CV)
 @@testset "spatial_index test" begin
     @@test mapping == [[2,4,3], [1,4,3], [2,1,4], [2,1,3]]
 end
 @}
+%##########################%
 @D Segment intersection test
 @{intersection = seg_intersection(V,CV[1, :],CV[2, :])
 @@testset "seg_intersection test" begin
     @@test intersection == (.25, [1.5 2.0])
 end
 @}
+%###########################%
 @D Segment fragmentation test
 @{V,CV = seg_fragmentation(V, CV, CV[1, :], CV[2:end, :])
 @@testset "seg_fragmentation test" begin
@@ -293,6 +374,21 @@ end
         [0 0 0 0 0 0 0 0 1 0 1]
         [0 0 0 0 0 0 0 0 0 1 1]
         [0 1 0 0 0 0 0 0 0 1 0]
+    ]
+end
+@}
+%####################%
+@D Vertices merge test
+@{Xs = [[[[0 0];[1 1];[0 1];[1 0];[1.5 1.5];[1.5 1.5]],[[1,5],[2,5],[3,6],[4,6]]]]
+V, EV = skel_union(Xs)
+V, EV = merge_vertices(V,EV)
+@@testset "merge_vertices test" begin
+    @@test V == [[0 0];[1 1];[0 1];[1 0];[1.5 1.5]]
+    @@test full(EV) == [
+        [1 0 0 0 1]
+        [0 1 0 0 1]
+        [0 0 1 0 1]
+        [0 0 0 1 1]
     ]
 end
 @}
