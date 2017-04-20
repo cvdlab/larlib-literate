@@ -24,8 +24,8 @@ operations on multiple cellular complexes of dimension $d$.
 @< Compute spatial index @>
 @< Segment intersection @>
 @< Segment fragmentation @>
-@< Vertices merge @>
 @< Planar Arrangement @>
+@< Vertices merge @>
 @}
 We define some type aliases to define the default vay to store data.
 Please note that we use the Julia's default CSC sparse matrices implementation
@@ -161,27 +161,38 @@ end
 \label{seg_intersection}
 Here is presented a basic segment intersection function.
 It is based on the method presented here: \url{http://paulbourke.net/geometry/pointlineplane/}.
-The function works only if $d=2$ and the cells are edges.
-If there is an intersection, it returns a \texttt{Tuple\{Float64,Verts\}} where 
+The function works of 1-cells in $d=2$.
+The function can return 0, 1 or 2 intersection points. Two intersection points are
+returned only if both the cells are colinear and the second cell is contained in the first one.
+Each intersection is stored in a \texttt{Tuple\{Float64,Verts\}} where 
 the \texttt{Float64} is the parameter of the intersection and the \texttt{Verts} 
-is the approximate point of intersection. \\
-\texttt{false} is returned in case of no intersection.
+is the approximate point of intersection.
 %#####################%
 @D Segment intersection
 @{function seg_intersection(V::Verts, cell1::Cell, cell2::Cell)
     x1, y1, x2, y2 = vcat(map(c->V[c, :], cell1.nzind)...)
     x3, y3, x4, y4 = vcat(map(c->V[c, :], cell2.nzind)...)
-    
+    ret = Array{Tuple{Float64, Verts}, 1}()
     denom = (y4-y3)*(x2-x1) - (x4-x3)*(y2-y1)
     a = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / denom
     b = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / denom
-
+    
     if 0 < a < 1 && 0 < b < 1
         p = [(x1 + a*(x2-x1))  (y1 + a*(y2-y1))]
-        return a, p
+        push!(ret, (a, p))
+    elseif isnan(a) && isnan(b) 
+        o = [x1 y1] 
+        v = [x2 y2] - o
+        alpha = 1/dot(v,v')
+        ps = [x3 y3; x4 y4]
+        for i in 1:2
+            a = alpha*dot(v',(ps[i]-o))
+            if 0 < a < 1
+                push!(ret, (a, ps[i:i, :]))
+            end
+        end
     end
-
-    return false
+    return ret
 end
 @}
 
@@ -208,16 +219,16 @@ the \texttt{to\_inters} edge with the \texttt{intersectable} edges.
 end
 @}
 For each cell in \texttt{intersectable} are computed the intersections with \texttt{to\_inters} via 
-the \hyperref[seg_intersection]{\texttt{seg\_intersection}} function. The intersection point is
-stored in \texttt{V} and \texttt{retV} then the parameter is coupled to the index of the newly 
-computed vertex into the \texttt{alphas} dictionary.
+the \hyperref[seg_intersection]{\texttt{seg\_intersection}} function. The intersection points are
+stored in \texttt{V} and \texttt{retV} then the parameters are coupled to the index of the newly 
+computed vertices into the \texttt{alphas} dictionary.
 %##########################%
 @D Compute the intersections
 @{retV = Verts(0, size(V, 2))
 for cell in 1:size(intersectable, 1)
     inters = seg_intersection(V, to_inters, intersectable[cell, :])
-    if inters != false
-        alpha, point = inters
+    while !isempty(inters)
+        alpha, point = pop!(inters)
         V = vcat(V, point)
         retV = vcat(retV, point)
         alphas[alpha] = size(V,1)
@@ -409,6 +420,11 @@ end
 @}
 
 
+
+
+
+
+
 %%%%%%%%%%%%%%%%%
 \section{Testing}
 %%%%%%%%%%%%%%%%%
@@ -423,17 +439,8 @@ Xs = (
     [[[1.5 1];[2.5 3]],[[1,2]]]
 )
 
-@< Skeletal union test @>
-@< Bounding box test @>
-@< Spatial index test @>
-@< Segment intersection test @>
-@< Segment fragmentation test @>
-@< Vertices merge test @>
-@< Planar arrangement test @>
-@}
-%####################%
-@D Skeletal union test
-@{V,CV = skel_union(Xs)
+V,CV = skel_union(Xs)
+
 @@testset "skel_union test" begin
     @@test V == [[1 2];[3 2];[1 3];[2 1];[2 3];[3 1];[1.5 1];[2.5 3]]
     @@test full(CV) == [
@@ -443,32 +450,37 @@ Xs = (
         [0 0 0 0 0 0 1 1]
     ]
 end
-@}
-%##################%
-@D Bounding box test
-@{lower, upper = bbox(V, CV[2, :])
+
+lower, upper = bbox(V, CV[2, :])
 @@testset "bbox test" begin
     @@test lower == [1 1]
     @@test upper == [2 3]
 end
-@}
-%###################%
-@D Spatial index test
-@{mapping = spatial_index(V,CV)
+
+mapping = spatial_index(V,CV)
 @@testset "spatial_index test" begin
     @@test mapping == [[2,4,3], [1,4,3], [2,1,4], [2,1,3]]
 end
-@}
-%##########################%
-@D Segment intersection test
-@{intersection = seg_intersection(V,CV[1, :],CV[2, :])
+
+V2 = [0 0; 3 3; 1 1; 2 2; 0 3; 3 0.]
+CV2 = sparse(Array{Int8, 2}([
+    [1 1 0 0 0 0]
+    [0 0 1 1 0 0]
+    [1 0 1 0 0 0]
+    [0 1 0 1 0 0]
+    [0 0 0 0 1 1]
+]))
+inters1 = seg_intersection(V2, CV2[1, :], CV2[2, :])
+inters2 = seg_intersection(V2, CV2[1, :], CV2[5, :])
+inters3 = seg_intersection(V2, CV2[3, :], CV2[4, :])
 @@testset "seg_intersection test" begin
-    @@test intersection == (.25, [1.5 2.0])
+    @@test inters1 == [(1/3, [1. 1.]),(2/3, [2. 2.])]
+    @@test inters2 == [(.5, [1.5 1.5])]
+    @@test inters3 == []
 end
-@}
-%###########################%
-@D Segment fragmentation test
-@{V,CV = seg_fragmentation(V, CV, CV[1, :], CV[2:end, :])
+
+V,CV = seg_fragmentation(V, CV, CV[1, :], CV[2:end, :])
+V2, CV2 = seg_fragmentation(V2, CV2, CV2[1, :], CV2[2:2, :])
 @@testset "seg_fragmentation test" begin
     @@test V == [1.5 2.0; 2.5 2.0; 2.0 2.0]
     @@test full(CV) == [
@@ -477,11 +489,15 @@ end
         [0 0 0 0 0 0 0 0 0 1 1]
         [0 1 0 0 0 0 0 0 0 1 0]
     ]
+    @@test V2 == [2. 2.; 1. 1.]
+    @@test full(CV2) == [
+        [1 0 0 0 0 0 0 1]
+        [0 0 0 0 0 0 1 1]
+        [0 1 0 0 0 0 1 0]
+    ] 
 end
-@}
-%####################%
-@D Vertices merge test
-@{Xs = [[[[0 0];[1 1];[0 1];[1 0];[1.5 1.5];[1.5 1.5]],[[1,5],[2,5],[3,6],[4,6]]]]
+
+Xs = [[[[0 0];[1 1];[0 1];[1 0];[1.5 1.5];[1.5 1.5]],[[1,5],[2,5],[3,6],[4,6]]]]
 V, EV = skel_union(Xs)
 V, EV = merge_vertices(V,EV)
 @@testset "merge_vertices test" begin
@@ -493,16 +509,13 @@ V, EV = merge_vertices(V,EV)
         [0 0 0 1 1]
     ]
 end
-@}
-%########################%
-@D Planar arrangement test
-@{Vs = [0. 0; 5 0; 2.5 4]
+
+Vs = [0. 0; 5 0; 2.5 4]
 EVs = sparse([1,1,2,2,3,3], [1,3,1,2,2,3], Int8(1))
 Vi = [-1. 2; 6 2]
 EVi = sparse([1,1], [1,2], Int8(1))
 rV, rEV = planar_arrangement(Vs, EVs, Vi, EVi)
-
-@@testset "planar_arrangement" begin
+@@testset "planar_arrangement test" begin
     @@test rV == [0 0; 5 0; 2.5 4; -1 2; 6 2; 1.25 2; 3.75 2; 1.25 2; 3.75 2]
     @@test full(rEV) == [
         [1 1 0 0 0 0 0 0 0]
