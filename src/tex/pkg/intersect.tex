@@ -1,5 +1,6 @@
 \documentclass[10pt,oneside]{article}
 \usepackage{hyperref}
+\usepackage{amsmath}
 \hypersetup{colorlinks = true}
 
 \author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
@@ -187,6 +188,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Segment fragmentation}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\label{seg_fragmentation}
 This function returns the new vertices and cells created by the intersection of 
 the \texttt{to\_inters} edge with the \texttt{intersectable} edges.
 \texttt{alphas} and \texttt{vertsnum} are variables used through all the function.
@@ -248,6 +250,111 @@ for a in 1:alphasnum
 end
 @}
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Planar Arrangement}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Given \texttt{sigma} 1-skeleton flattened on the $z=0$ plane and the intersections with $z=0$ of the 2-cells
+that can intersect \texttt{sigma}, the function returns \texttt{sigma} fully fragmented.
+%###################%
+@D Planar Arrangement
+@{function planar_arrangement(
+    Vsigma::Verts, EVsigma::Cells, 
+    Vinters::Verts, EVinters::Cells
+)
+    @< Merge data matrices @>
+    @< Build return matrices @>
+    @< Fragment cells @>
+    @< Delete marked cells @>
+
+    retV, retEV
+end
+@}
+We firstly need to merge the input data. We concatenate the vertices lists in \texttt{V} and 
+we build a big \texttt{EV} matrix to store both \texttt{EVsigma} and \texttt{EVinters}:
+\begin{equation}
+    \texttt{EV} = 
+    \begin{bmatrix}
+        \begin{array}{c|c}
+            \texttt{EVsigma} & 0 \\ 
+            \hline
+            0 & \texttt{EVinters}
+        \end{array}
+    \end{bmatrix}
+\end{equation}
+%####################%
+@D Merge data matrices
+@{EVs_size = size(EVsigma)
+EVi_size = size(EVinters)
+cellsnum = EVs_size[1] + EVi_size[1]
+V = vcat(Vsigma, Vinters)
+EV = spzeros(Int8, cellsnum, EVs_size[2] + EVi_size[2])
+EV[1:EVs_size[1], 1:EVs_size[2]] = EVsigma
+EV[EVs_size[1]+1:end, EVs_size[2]+1:end] = EVinters
+@}
+Now we build the \texttt{retEV} and \texttt{retV} matrices that will store 
+the data of the fragmentation. \texttt{retEV} initially contains only the cells 
+of the 1-skeleton of \texttt{sigma} because the only original 1-cells that the 
+result should contain are the ones from \texttt{sigma} which have no intersections 
+with other cells.
+%######################%
+@D Build return matrices
+@{overtsnum = size(V, 1)  # original vertices number
+ocellsnum = EVs_size[1]  # original cells number
+retEV = hcat(EVsigma[:, :], spzeros(Int8, ocellsnum, overtsnum-EVs_size[2]))
+
+retV = V[:, :]
+@}
+For each 1-cell we compute its fragmentation with the \hyperref[seg_fragmentation]{\texttt{seg\_fragmentation}} 
+function and we push the data into the \texttt{retEV}(adding columns and rows) and \texttt{retV} matrices.
+While we iterate the cells we store into \texttt{todelete} the cells of \texttt{sigma} which 
+intersect with cells outside \texttt{sigma}.
+%###############%
+@D Fragment cells
+@{todelete = Array{Int64, 1}()
+for i in 1:cellsnum
+
+    cells = vcat(EV[1:i-1, :], EV[i+1:end, :])
+    nV, nEV = seg_fragmentation(V, EV, EV[i,:], cells)
+
+    if size(nV,1) != 0
+        ncellsnum = size(nEV, 1) # new cells number
+        nvertsnum = size(nEV-overtsnum, 2) # new vertices number
+
+        origvs_EV = nEV[:, 1:overtsnum]
+        origvs_EV = hcat(
+            origvs_EV,
+            spzeros(Int8, ncellsnum, size(retV,1)-overtsnum)
+        )
+        
+        retEV = vcat(retEV, origvs_EV)
+
+        nvs_EV = nEV[:, overtsnum+1:end]
+        nvs_EV = vcat(
+            spzeros(Int8, size(retEV,1)-ncellsnum, size(nvs_EV, 2)),
+            nvs_EV
+        )
+
+        retEV = hcat(retEV, nvs_EV)
+        
+        retV = vcat(retV, nV)
+
+        if i <= ocellsnum
+            push!(todelete, i)
+        end
+    end
+end
+@}
+We finally delete the cells marked to be deleted into the \texttt{todelete} stack.
+%####################%
+@D Delete marked cells
+@{while !isempty(todelete) 
+    i = pop!(todelete)
+    retEV = vcat(retEV[1:i-1, :], retEV[i+1:end, :])
+end
+@}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%
 \section{Vertices merge}
 %%%%%%%%%%%%%%%%%%%%%%%%
@@ -301,86 +408,6 @@ corresponding columns of \texttt{EV}.
 end
 @}
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Planar Arrangement}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%###################%
-@D Planar Arrangement
-@{function planar_arrangement(
-    Vsigma::Verts, EVsigma::Cells, 
-    Vinters::Verts, EVinters::Cells
-)
-    @< Merge data matrices @>
-    @< Build return matrices @>
-    @< Fragment cells @>
-    @< Delete marked cells @>
-
-    retV, retEV
-end
-@}
-%####################%
-@D Merge data matrices
-@{EVs_size = size(EVsigma)
-EVi_size = size(EVinters)
-cellsnum = EVs_size[1] + EVi_size[1]
-V = vcat(Vsigma, Vinters)
-EV = spzeros(Int8, cellsnum, EVs_size[2] + EVi_size[2])
-EV[1:EVs_size[1], 1:EVs_size[2]] = EVsigma
-EV[EVs_size[1]+1:end, EVs_size[2]+1:end] = EVinters
-@}
-%######################%
-@D Build return matrices
-@{overtsnum = size(V, 1)  # original vertices number
-ocellsnum = EVs_size[1]  # original cells number
-retEV = hcat(EVsigma[:, :], spzeros(Int8, ocellsnum, overtsnum-EVs_size[2]))
-
-retV = V[:, :]
-@}
-%###############%
-@D Fragment cells
-@{todelete = Array{Int64, 1}()
-for i in 1:cellsnum
-
-    cells = vcat(EV[1:i-1, :], EV[i+1:end, :])
-    nV, nEV = seg_fragmentation(V, EV, EV[i,:], cells)
-
-    if size(nV,1) != 0
-        ncellsnum = size(nEV, 1) # new cells number
-        nvertsnum = size(nEV-overtsnum, 2) # new vertices number
-
-        origvs_EV = nEV[:, 1:overtsnum]
-        origvs_EV = hcat(
-            origvs_EV,
-            spzeros(Int8, ncellsnum, size(retV,1)-overtsnum)
-        )
-        
-        retEV = vcat(retEV, origvs_EV)
-
-        nvs_EV = nEV[:, overtsnum+1:end]
-        nvs_EV = vcat(
-            spzeros(Int8, size(retEV,1)-ncellsnum, size(nvs_EV, 2)),
-            nvs_EV
-        )
-
-        retEV = hcat(retEV, nvs_EV)
-        
-        retV = vcat(retV, nV)
-
-        if i <= ocellsnum
-            push!(todelete, i)
-        end
-    end
-end
-@}
-%####################%
-@D Delete marked cells
-@{while !isempty(todelete) 
-    i = pop!(todelete)
-    retEV = vcat(retEV[1:i-1, :], retEV[i+1:end, :])
-end
-@}
 
 %%%%%%%%%%%%%%%%%
 \section{Testing}
