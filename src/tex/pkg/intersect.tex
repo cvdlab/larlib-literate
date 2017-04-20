@@ -24,6 +24,7 @@ operations on multiple cellular complexes of dimension $d$.
 @< Segment intersection @>
 @< Segment fragmentation @>
 @< Vertices merge @>
+@< Planar Arrangement @>
 @}
 We define some type aliases to define the default vay to store data.
 Please note that we use the Julia's default CSC sparse matrices implementation
@@ -174,7 +175,7 @@ is the approximate point of intersection. \\
     a = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / denom
     b = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / denom
 
-    if 0 <= a <= 1 && 0 <= b <= 1
+    if 0 < a < 1 && 0 < b < 1
         p = [(x1 + a*(x2-x1))  (y1 + a*(y2-y1))]
         return a, p
     end
@@ -186,70 +187,65 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Segment fragmentation}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-This function computes the cellular complex after performing the intersection of the \texttt{sigma} edge 
-with the \texttt{sigma\_int} edges.
-\texttt{alphas}, \texttt{vertsnum} and \texttt{cellsnum} are variables used through all the function.
+This function returns the new vertices and cells created by the intersection of 
+the \texttt{to\_inters} edge with the \texttt{intersectable} edges.
+\texttt{alphas} and \texttt{vertsnum} are variables used through all the function.
 %######################%
 @D Segment fragmentation
-@{function seg_fragmentation(V::Verts, EV::Cells, sigma::Cell, sigma_int::Cells)
+@{function seg_fragmentation(
+    V::Verts, EV::Cells, 
+    to_inters::Cell, intersectable::Cells
+)
     alphas = Dict{Float64, Int64}()
     vertsnum = size(V, 1)
-    cellsnum = size(EV, 1)
+
     @< Compute the intersections @>
     @< Add new cells to EV @>
-    @< Delete sigma from EV @>
-    V, EV
+    
+    retV, retEV
 end
 @}
-For each cell in \texttt{sigma\_int} are computed the intersections with \texttt{sigma} via 
+For each cell in \texttt{intersectable} are computed the intersections with \texttt{to\_inters} via 
 the \hyperref[seg_intersection]{\texttt{seg\_intersection}} function. The intersection point is
-stored in \texttt{V} and the parameter is coupled to the index of the newly computed vertex into 
-the \texttt{alphas} dictionary.
+stored in \texttt{V} and \texttt{retV} then the parameter is coupled to the index of the newly 
+computed vertex into the \texttt{alphas} dictionary.
 %##########################%
 @D Compute the intersections
-@{for cell in 1:size(sigma_int, 1)
-    inters = seg_intersection(V, sigma, sigma_int[cell, :])
+@{retV = Verts(0, size(V, 2))
+for cell in 1:size(intersectable, 1)
+    inters = seg_intersection(V, to_inters, intersectable[cell, :])
     if inters != false
         alpha, point = inters
         V = vcat(V, point)
+        retV = vcat(retV, point)
         alphas[alpha] = size(V,1)
     end
 end
 @}
-The \texttt{EV} matrix must be widened to fit the new vertices and the cells derived from 
-the fragmentation of \texttt{sigma}. We sort and iterate over the key set of \texttt{alphas}
-to fill the empty cells of \texttt{EV} just generated. As previously stated, \texttt{alphas} maps 
+We sort and iterate over the key set of \texttt{alphas}
+to fill a newly generated \texttt{retEV} matrix. As previously stated, \texttt{alphas} maps 
 the parameters of the intersections to the indices of the new vertices, so the sorting of the keys 
 is important to create coherent and consecutive cells.
 %####################%
 @D Add new cells to EV
 @{alphaskeys = sort(collect(keys(alphas)))
 alphasnum = length(alphaskeys)
-nvertsnum = size(V, 1)
 
-EV = hcat(EV, spzeros(Int8, cellsnum, nvertsnum-vertsnum))
-EV = vcat(EV, spzeros(Int8, alphasnum+1, nvertsnum))
+nvertsnum = size(V, 1)
+retEV = spzeros(Int8, alphasnum+1, nvertsnum)
 for a in 1:alphasnum
     if a == 1
-        EV[cellsnum+1, sigma.nzind[1]] = 1
-        EV[cellsnum+1, alphas[alphaskeys[a]]] = 1
+        retEV[1, to_inters.nzind[1]] = 1
+        retEV[1, alphas[alphaskeys[a]]] = 1
     end
     if a == alphasnum
-        EV[cellsnum+alphasnum+1, alphas[alphaskeys[a]]] = 1
-        EV[cellsnum+alphasnum+1, sigma.nzind[2]] = 1
+        retEV[alphasnum+1, alphas[alphaskeys[a]]] = 1
+        retEV[alphasnum+1, to_inters.nzind[2]] = 1
     else
-        EV[cellsnum+a+1, alphas[alphaskeys[a]]] = 1
-        EV[cellsnum+a+1, alphas[alphaskeys[a+1]]] = 1
+        retEV[a+1, alphas[alphaskeys[a]]] = 1
+        retEV[a+1, alphas[alphaskeys[a+1]]] = 1
     end
 end
-@}
-At last we delete \texttt{sigma} from EV. More than one repetition of sigma can 
-be stored into EV. Here is safe to delete only the first occurrence because the 
-others will be deleted on the other calls of this function.
-%#####################%
-@D Delete sigma from EV
-@{todel = intersect(map(col->EV[:, col].nzind, sigma.nzind)...)[1]
-EV = vcat(EV[1:todel-1, :], EV[todel+1:end, :])
 @}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
@@ -305,6 +301,87 @@ corresponding columns of \texttt{EV}.
 end
 @}
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Planar Arrangement}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%###################%
+@D Planar Arrangement
+@{function planar_arrangement(
+    Vsigma::Verts, EVsigma::Cells, 
+    Vinters::Verts, EVinters::Cells
+)
+    @< Merge data matrices @>
+    @< Build return matrices @>
+    @< Fragment cells @>
+    @< Delete marked cells @>
+
+    retV, retEV
+end
+@}
+%####################%
+@D Merge data matrices
+@{EVs_size = size(EVsigma)
+EVi_size = size(EVinters)
+cellsnum = EVs_size[1] + EVi_size[1]
+V = vcat(Vsigma, Vinters)
+EV = spzeros(Int8, cellsnum, EVs_size[2] + EVi_size[2])
+EV[1:EVs_size[1], 1:EVs_size[2]] = EVsigma
+EV[EVs_size[1]+1:end, EVs_size[2]+1:end] = EVinters
+@}
+%######################%
+@D Build return matrices
+@{overtsnum = size(V, 1)  # original vertices number
+ocellsnum = EVs_size[1]  # original cells number
+retEV = hcat(EVsigma[:, :], spzeros(Int8, ocellsnum, overtsnum-EVs_size[2]))
+
+retV = V[:, :]
+@}
+%###############%
+@D Fragment cells
+@{todelete = Array{Int64, 1}()
+for i in 1:cellsnum
+
+    cells = vcat(EV[1:i-1, :], EV[i+1:end, :])
+    nV, nEV = seg_fragmentation(V, EV, EV[i,:], cells)
+
+    if size(nV,1) != 0
+        ncellsnum = size(nEV, 1) # new cells number
+        nvertsnum = size(nEV-overtsnum, 2) # new vertices number
+
+        origvs_EV = nEV[:, 1:overtsnum]
+        origvs_EV = hcat(
+            origvs_EV,
+            spzeros(Int8, ncellsnum, size(retV,1)-overtsnum)
+        )
+        
+        retEV = vcat(retEV, origvs_EV)
+
+        nvs_EV = nEV[:, overtsnum+1:end]
+        nvs_EV = vcat(
+            spzeros(Int8, size(retEV,1)-ncellsnum, size(nvs_EV, 2)),
+            nvs_EV
+        )
+
+        retEV = hcat(retEV, nvs_EV)
+        
+        retV = vcat(retV, nV)
+
+        if i <= ocellsnum
+            push!(todelete, i)
+        end
+    end
+end
+@}
+%####################%
+@D Delete marked cells
+@{while !isempty(todelete) 
+    i = pop!(todelete)
+    retEV = vcat(retEV[1:i-1, :], retEV[i+1:end, :])
+end
+@}
+
 %%%%%%%%%%%%%%%%%
 \section{Testing}
 %%%%%%%%%%%%%%%%%
@@ -325,6 +402,7 @@ Xs = (
 @< Segment intersection test @>
 @< Segment fragmentation test @>
 @< Vertices merge test @>
+@< Planar arrangement test @>
 @}
 %####################%
 @D Skeletal union test
@@ -365,11 +443,8 @@ end
 @D Segment fragmentation test
 @{V,CV = seg_fragmentation(V, CV, CV[1, :], CV[2:end, :])
 @@testset "seg_fragmentation test" begin
-    @@test V == [[1 2];[3 2];[1 3];[2 1];[2 3];[3 1];[1.5 1];[2.5 3];[1.5 2];[2.5 2];[2 2]]
+    @@test V == [1.5 2.0; 2.5 2.0; 2.0 2.0]
     @@test full(CV) == [
-        [0 0 1 1 0 0 0 0 0 0 0]
-        [0 0 0 0 1 1 0 0 0 0 0]
-        [0 0 0 0 0 0 1 1 0 0 0]
         [1 0 0 0 0 0 0 0 1 0 0]
         [0 0 0 0 0 0 0 0 1 0 1]
         [0 0 0 0 0 0 0 0 0 1 1]
@@ -389,6 +464,28 @@ V, EV = merge_vertices(V,EV)
         [0 1 0 0 1]
         [0 0 1 0 1]
         [0 0 0 1 1]
+    ]
+end
+@}
+%########################%
+@D Planar arrangement test
+@{Vs = [0. 0; 5 0; 2.5 4]
+EVs = sparse([1,1,2,2,3,3], [1,3,1,2,2,3], Int8(1))
+Vi = [-1. 2; 6 2]
+EVi = sparse([1,1], [1,2], Int8(1))
+rV, rEV = planar_arrangement(Vs, EVs, Vi, EVi)
+
+@@testset "planar_arrangement" begin
+    @@test rV == [0 0; 5 0; 2.5 4; -1 2; 6 2; 1.25 2; 3.75 2; 1.25 2; 3.75 2]
+    @@test full(rEV) == [
+        [1 1 0 0 0 0 0 0 0]
+        [1 0 0 0 0 1 0 0 0]
+        [0 0 1 0 0 1 0 0 0]
+        [0 1 0 0 0 0 1 0 0]
+        [0 0 1 0 0 0 1 0 0]
+        [0 0 0 1 0 0 0 1 0]
+        [0 0 0 0 0 0 0 1 1]
+        [0 0 0 0 1 0 0 0 1]
     ]
 end
 @}
