@@ -497,25 +497,12 @@ V2, CV2 = seg_fragmentation(V2, CV2, CV2[1, :], CV2[2:2, :])
     ] 
 end
 
-Xs = [[[[0 0];[1 1];[0 1];[1 0];[1.5 1.5];[1.5 1.5]],[[1,5],[2,5],[3,6],[4,6]]]]
-V, EV = skel_union(Xs)
-V, EV = merge_vertices(V,EV)
-@@testset "merge_vertices test" begin
-    @@test V == [[0 0];[1 1];[0 1];[1 0];[1.5 1.5]]
-    @@test full(EV) == [
-        [1 0 0 0 1]
-        [0 1 0 0 1]
-        [0 0 1 0 1]
-        [0 0 0 1 1]
-    ]
-end
-
 Vs = [0. 0; 5 0; 2.5 4]
 EVs = sparse([1,1,2,2,3,3], [1,3,1,2,2,3], Int8(1))
 Vi = [-1. 2; 6 2]
 EVi = sparse([1,1], [1,2], Int8(1))
 rV, rEV = planar_arrangement(Vs, EVs, Vi, EVi)
-@@testset "planar_arrangement test" begin
+@@testset "planar_arrangement" begin
     @@test rV == [0 0; 5 0; 2.5 4; -1 2; 6 2; 1.25 2; 3.75 2; 1.25 2; 3.75 2]
     @@test full(rEV) == [
         [1 1 0 0 0 0 0 0 0]
@@ -526,6 +513,22 @@ rV, rEV = planar_arrangement(Vs, EVs, Vi, EVi)
         [0 0 0 1 0 0 0 1 0]
         [0 0 0 0 0 0 0 1 1]
         [0 0 0 0 1 0 0 0 1]
+    ]
+end
+
+
+rV, rEV = merge_vertices(rV, rEV)
+@@testset "merge_vertices test" begin
+    @@test rV == [0 0; 5 0; 2.5 4; -1 2; 6 2; 1.25 2; 3.75 2]
+    @@test full(rEV) == [
+        [1 1 0 0 0 0 0]
+        [1 0 0 0 0 1 0]
+        [0 0 1 0 0 1 0]
+        [0 1 0 0 0 0 1]
+        [0 0 1 0 0 0 1]
+        [0 0 0 1 0 1 0]
+        [0 0 0 0 0 1 1]
+        [0 0 0 0 1 0 1]
     ]
 end
 @}
