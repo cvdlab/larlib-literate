@@ -180,32 +180,63 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Face-plane intersection}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+This function finds the segments of the intersection of a face with the $x_3=0$ plane.
 @D Face-plane intersection
 @{function face_plane_int(V::Verts, face::Cells)
-    edgenum = size(face, 1)
-    ints = Array{Verts, 1}()
-    for e in 1:edgenum
-        inter = seg_plane_int(V3, face[e, :])
-        if inter != false
-            push!(ints, inter)
-        end
-    end
-    v = ints[2]-ints[1]
-    beta = 1/dot(v, v')
-    dict = Dict{Float64, Verts}()
-    map(i->dict[beta*dot(v', (i-ints[1]))] = i, ints)
-    
-    rV = Verts(0, 2)
-    map(k->rV=vcat(rV, dict[k][:, 1:2]), sort(collect(keys(dict))))
-
-    ncols = size(rV, 1)
-    nrows = Int(ncols/2)
-    EV = spzeros(Int8, nrows, ncols)
-    map(row->EV[row, 2*row-1:2*row] = 1, 1:nrows)
-
+    @< Find edges-plane intersections @>
+    @< Build the alphas map @>
+    @< Put intersections into rV @>
+    @< Build the EV matrix @>
     rV, EV
 end
 @}
+First of all, the intersection vertices of the edges of the face with the $x_3=0$ plane are found and stacked in the \texttt{ints} array:
+%###############################⅜
+@D Find edges-plane intersections
+@{edgenum = size(face, 1)
+ints = Array{Verts, 1}()
+for e in 1:edgenum
+    inter = seg_plane_int(V3, face[e, :])
+    if inter != false
+        push!(ints, inter)
+    end
+end
+@}
+The intersections are then parameterized over the line on which all the intersection lay (the input face is for sure planar).
+The data is put into the \texttt{ints\_dict} dictionary.
+%#####################%
+@D Build the alphas map
+@{v = ints[2]-ints[1]
+beta = 1/dot(v, v')
+ints_dict = Dict{Float64, Verts}()
+map(i->ints_dict[beta*dot(v', (i-ints[1]))] = i, ints)
+@}
+The \texttt{rV} vertices matrix is built up by sorting the keys of \texttt{ints\_dict} and put the intersection points in that order.
+Please notice that vertices in \texttt{V} are in $\mathbb{E}^3$ while the ones into \texttt{rV} are in $\mathbb{E}^2$ because
+their last coordinate is truncated.
+%##########################%
+@D Put intersections into rV
+@{rV = Verts(0, 2)
+map(k->rV=vcat(rV, ints_dict[k][:, 1:2]), sort(collect(keys(ints_dict))))
+@}
+The \texttt{EV} edges matrix structure is straightforward:
+\[
+    \texttt{EV} = 
+    \begin{pmatrix}
+        1 & 1 & 0 & 0 & \cdots & 0 & 0 \\
+        0 & 0 & 1 & 1 & \cdots & 0 & 0 \\
+        \vdots & \vdots & \vdots & \vdots & \ddots & \vdots & \vdots \\
+        0 & 0 & 0 & 0 & \cdots & 1 & 1
+    \end{pmatrix}
+\]
+%####################%
+@D Build the EV matrix
+@{ncols = size(rV, 1)
+nrows = Int(ncols/2)
+EV = spzeros(Int8, nrows, ncols)
+map(row->EV[row, 2*row-1:2*row] = 1, 1:nrows)
+@}
+
 
 
 %%%%%%%%%%%%%%%%%
