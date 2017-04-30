@@ -1,6 +1,7 @@
 \documentclass[10pt,oneside]{article}
 \usepackage{hyperref}
 \usepackage{amsmath}
+\usepackage{amsfonts}
 \hypersetup{colorlinks = true}
 
 \author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
@@ -155,6 +156,13 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Segment-plane intersection}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+We want to find the intersection between the segment defined by the vertices $A$ and $B$ ($A, B \in \mathbb{E}^3$) and the plane $x_3=0$.
+So we need to find the intersection between two lines:
+\[ P=A+\alpha\overrightarrow{AB}, \quad \alpha \in [0,1] \]
+\[ P=A'+\beta\overrightarrow{A'B'}, \quad \beta \in [0,1] \]
+Where $A'$ and $B'$ are the projections of $A$ and $B$ on the $x_3=0$ plane. \\
+If we resolve for $\alpha$ we find out that there is an intersection only if:
+\[ \alpha = \frac{x^A_3}{x^B_3 - x^A_3} \in [0,1]\]
 @D Segment-plane intersection
 @{function seg_plane_int(V::Verts, seg::Cell)
     xa, ya, za, xb, yb, zb = vcat(map(c->V[c, :], seg.nzind)...)
