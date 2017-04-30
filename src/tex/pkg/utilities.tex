@@ -152,6 +152,52 @@ for ci in 1:cell_num
 end
 @}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Segment-plane intersection}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+@D Segment-plane intersection
+@{function seg_plane_int(V::Verts, seg::Cell)
+    xa, ya, za, xb, yb, zb = vcat(map(c->V[c, :], seg.nzind)...)
+    alpha = za / (za - zb)
+    if 0 <= alpha <= 1
+        A = [xa ya za]
+        B = [xb yb zb]
+        return A+alpha*(B-A)
+    end
+    false
+end
+@}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Face-plane intersection}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+@D Face-plane intersection
+@{function face_plane_int(V::Verts, face::Cells)
+    edgenum = size(face, 1)
+    ints = Array{Verts, 1}()
+    for e in 1:edgenum
+        inter = seg_plane_int(V3, face[e, :])
+        if inter != false
+            push!(ints, inter)
+        end
+    end
+    v = ints[2]-ints[1]
+    beta = 1/dot(v, v')
+    dict = Dict{Float64, Verts}()
+    map(i->dict[beta*dot(v', (i-ints[1]))] = i, ints)
+    
+    rV = Verts(0, 2)
+    map(k->rV=vcat(rV, dict[k][:, 1:2]), sort(collect(keys(dict))))
+
+    ncols = size(rV, 1)
+    nrows = Int(ncols/2)
+    EV = spzeros(Int8, nrows, ncols)
+    map(row->EV[row, 2*row-1:2*row] = 1, 1:nrows)
+
+    rV, EV
+end
+@}
 
 
 %%%%%%%%%%%%%%%%%
@@ -191,7 +237,22 @@ mapping = spatial_index(V,CV)
     @@test mapping == [[2,4,3], [1,4,3], [2,1,4], [2,1,3]]
 end
 
-
+V3 = [0 0 -2; 0 0 2; 1.5 1.5 -1; 3 3 2; 3 3 -2]
+FV = sparse(Int8[
+    [1 1 0 0 0]
+    [0 0 0 1 1]
+    [0 0 1 1 0]
+    [0 1 1 0 0]
+    [1 0 0 0 1]
+])
+rV, rEV = face_plane_int(V3, FV)
+@@testset "face_plane_int test" begin
+    @@test rV == [0. 0; 1 1; 2 2; 3 3]
+    @@test full(rEV) == [
+        [1 1 0 0]
+        [0 0 1 1]
+    ]
+end
 
 @}
 \end{document}
