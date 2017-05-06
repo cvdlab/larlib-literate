@@ -4,7 +4,7 @@
 \hypersetup{colorlinks = true}
 
 \author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
-\title{Cells intersections
+\title{Plane intersections
 \footnote{This document is part of the \emph{Linear Algebraic Representation} (LAR.jl) framework.}
 }
 
@@ -16,13 +16,14 @@
 \section{Overview}
 %%%%%%%%%%%%%%%%%%
 The \texttt{intersect.jl} script file contains a set of functions to perform intersection
-operations on multiple cellular complexes of dimension $d$.
+operations on the plane with $d=2$.
 @O lib/jl/intersect.jl
 @{@< Imports and aliases @>
 @< Segment intersection @>
 @< Segment fragmentation @>
 @< Planar Arrangement @>
 @< Vertices merge @>
+@< Biconnected components @>
 @}
 We define some type aliases to define the default vay to store data.
 Please note that we use the Julia's default CSC sparse matrices implementation
@@ -144,7 +145,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Planar Arrangement}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Given \texttt{sigma} 1-skeleton flattened on the $z=0$ plane and the intersections with $z=0$ of the 2-cells
+Given \texttt{sigma} 1-skeleton flattened on the $x_3=0$ plane and the intersections with $x_3=0$ of the 2-cells
 that can intersect \texttt{sigma}, the function returns \texttt{sigma} fully fragmented.
 %###################%
 @D Planar Arrangement
@@ -162,7 +163,7 @@ end
 @}
 We firstly need to merge the input data. We concatenate the vertices lists in \texttt{V} and 
 we build a big \texttt{EV} matrix to store both \texttt{EVsigma} and \texttt{EVinters}:
-\begin{equation}
+\[
     \texttt{EV} = 
     \begin{bmatrix}
         \begin{array}{c|c}
@@ -171,7 +172,7 @@ we build a big \texttt{EV} matrix to store both \texttt{EVsigma} and \texttt{EVi
             0 & \texttt{EVinters}
         \end{array}
     \end{bmatrix}
-\end{equation}
+\]
 %####################%
 @D Merge data matrices
 @{EVs_size = size(EVsigma)
@@ -289,7 +290,7 @@ end
 @}
 At last we simply delete the vertices from the \texttt{V} and their 
 corresponding columns of \texttt{EV}.
-%####################%
+%############################%
 @D Delete vertices in todelete
 @{while !isempty(todelete)
     vi = pop!(todelete)
@@ -299,10 +300,112 @@ end
 @}
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Maximal biconnected components}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+To individuate the maximal biconnected components of the fragmented and merged 1-skeleton
+we use the well know 1973 Hopcroft-Tarjan algorithm for biconnected components (\url{doi.acm.org/10.1145/362248.362272}).
+%#######################%
+@D Biconnected components
+@{function biconnected_components(V::Verts, EV::Cells)
+    @< Declare local variables @>
+    @< Support functions @>
+    @< Depth first visit @>
+    bicon_comps
+end
+@}
+We will need a point stack (\texttt{ps}), an edge stack (\texttt{es}), a list of traversed edges (\texttt{todel}), 
+a list of biconnected components (\texttt{bicon\_comps}) and a index to avoid duplicate numbering of vertices (\texttt{hivtx}).
+\texttt{ps} is made of triples composed by the index of the vertex in \texttt{V}, the index assigned by the algorithm 
+and the component identifier also assigned by the algorithm. \texttt{es} instead contains couples with the index of 
+the edge inside \texttt{EV} and the assigned index of the tail node. The indexes in \texttt{todel} and \texttt{bicon\_comps}
+are relative to \texttt{EV}.
+%########################%
+@D Declare local variables
+@{ps = Array{Tuple{Int, Int, Int}, 1}()
+es = Array{Tuple{Int, Int}, 1}()
+todel = Array{Int, 1}()
+bicon_comps = Array{Array{Int, 1}, 1}()
+hivtx = 1
+@}
+Here are implemented some functions helpful throughout the algorithm.
+\texttt{an\_edge} returns the index relative to \texttt{EV} of the first edge out of \texttt{point} if exists or \texttt{false} otherwise.
+\texttt{get\_head}, given an \texttt{edge} and a point (the \texttt{tail}), returns the index relative 
+to \texttt{V} of the head (the point that is not \texttt{tail}) of the \texttt{edge}. 
+\texttt{v\_to\_vi}, given the index relative to \texttt{V} of a vertex(\texttt{v}), returns its index using the algorithm numbering.
+This index can also not exists; in this case \texttt{false} is returned.
+%##################%
+@D Support functions
+@{function an_edge(point)
+    edges = setdiff(EV[:, point].nzind, todel)
+    if length(edges) == 0
+        edges = [false]
+    end
+    edges[1]
+end
 
+function get_head(edge, tail)
+    setdiff(EV[edge, :].nzind, [tail])[1]
+end
 
+function v_to_vi(v)
+    i = findfirst(t->t[1]==v, ps)
+    if i == 0
+        return false
+    else
+        return ps[i][2]
+    end
+end
+@}
+%##################%
+@D Depth first visit
+@{push!(ps, (1,1,1))
 
+while true
+    edge = an_edge(ps[end][1])
+    if edge != false
+        tail = ps[end][2]
+        head = get_head(edge, ps[end][1])
+        hi = v_to_vi(head)  #edge head index
+        if hi == false  # if head is an un-numbered point
+            hivtx += 1
+            push!(ps, (head, hivtx, ps[end][2]))
+        else
+            if hi < ps[end][3]
+                ps[end] = (ps[end][1], ps[end][2], hi)
+            end
+        end
 
+        push!(es, (edge, tail))
+        push!(todel, edge)
+    else
+
+        if length(ps) == 1
+            break
+        else
+            if ps[end][3] == ps[end-1][2]
+                
+                edges = Array{Int, 1}()
+                while true
+                    edge, tail = pop!(es)
+                    push!(edges, edge)
+                    if tail == ps[end][3]
+                        if length(edges) > 1
+                            push!(bicon_comps, edges)
+                        end
+                        break
+                    end
+                end
+            else
+                if ps[end-1][3] > ps[end][3]
+                    ps[end-1] = (ps[end-1][1], ps[end-1][2], ps[end][3])
+                end
+            end
+            pop!(ps)
+        end
+    end
+end
+@}
 
 %%%%%%%%%%%%%%%%%
 \section{Testing}
@@ -371,6 +474,11 @@ rV, rEV = merge_vertices(rV, rEV)
         [0 0 0 0 0 1 1]
         [0 0 0 0 1 0 1]
     ]
+end
+
+comps = biconnected_components(rV, rEV)
+@@testset "biconnected_components test" begin
+    @@test comps == [[7,2,3,5,4,1]]
 end
 @}
 \end{document}
