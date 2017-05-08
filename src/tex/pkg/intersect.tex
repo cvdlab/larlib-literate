@@ -314,26 +314,28 @@ we use the well know 1973 Hopcroft-Tarjan algorithm for biconnected components (
     bicon_comps
 end
 @}
-We will need a point stack (\texttt{ps}), an edge stack (\texttt{es}), a list of traversed edges (\texttt{todel}), 
-a list of biconnected components (\texttt{bicon\_comps}) and a index to avoid duplicate numbering of vertices (\texttt{hivtx}).
-\texttt{ps} is made of triples composed by the index of the vertex in \texttt{V}, the index assigned by the algorithm 
-and the component identifier also assigned by the algorithm. \texttt{es} instead contains couples with the index of 
-the edge inside \texttt{EV} and the assigned index of the tail node. The indexes in \texttt{todel} and \texttt{bicon\_comps}
-are relative to \texttt{EV}.
+We will need a point stack (\texttt{ps}), an edge stack (\texttt{es}), a list of traversed edges (\texttt{todel}), a list of 
+visited points (\texttt{visited}), a list of biconnected components (\texttt{bicon\_comps}) and a index to avoid duplicate 
+numbering of vertices (\texttt{hivtx}). \texttt{ps} is made of triples composed by the index of the vertex in \texttt{V}, 
+the index assigned by the algorithm and the component identifier also assigned by the algorithm. \texttt{es} instead 
+contains couples with the index of the edge inside \texttt{EV} and the assigned index of the tail node. The indexes 
+in \texttt{todel} and \texttt{bicon\_comps} are relative to \texttt{EV} while the ones of \texttt{visited} are
+relative to \texttt{V}
 %########################%
 @D Declare local variables
 @{ps = Array{Tuple{Int, Int, Int}, 1}()
 es = Array{Tuple{Int, Int}, 1}()
 todel = Array{Int, 1}()
+visited = Array{Int, 1}()
 bicon_comps = Array{Array{Int, 1}, 1}()
 hivtx = 1
 @}
 Here are implemented some functions helpful throughout the algorithm.
-\texttt{an\_edge} returns the index relative to \texttt{EV} of the first edge out of \texttt{point} if exists or \texttt{false} otherwise.
-\texttt{get\_head}, given an \texttt{edge} and a point (the \texttt{tail}), returns the index relative 
-to \texttt{V} of the head (the point that is not \texttt{tail}) of the \texttt{edge}. 
-\texttt{v\_to\_vi}, given the index relative to \texttt{V} of a vertex (\texttt{v}), returns its index using the algorithm numbering.
-This index can also not exists; in this case \texttt{false} is returned.
+\texttt{an\_edge} returns the index relative to \texttt{EV} of the first edge out of \texttt{point} if exists or 
+\texttt{false} otherwise. \texttt{get\_head}, given an \texttt{edge} and a point (the \texttt{tail}), returns the 
+index relative to \texttt{V} of the head (the point that is not \texttt{tail}) of the \texttt{edge}. 
+\texttt{v\_to\_vi}, given the index relative to \texttt{V} of a vertex (\texttt{v}), returns its index using 
+the algorithm numbering. This index can also not exists; in this case \texttt{false} is returned.
 %##################%
 @D Support functions
 @{function an_edge(point)
@@ -357,13 +359,14 @@ function v_to_vi(v)
     end
 end
 @}
-The DFS visit is perfectly akin to the one proposed in the Hopcroft-Tarjan original algorithm.
+The DFS visit is mostly akin to the one proposed in the Hopcroft-Tarjan original algorithm.
 The starting point is the first one in \texttt{V}.
 %##################%
 @D Depth first visit
 @{push!(ps, (1,1,1))
-
-while true
+push!(visited, 1)
+exit = false
+while !exit
     edge = an_edge(ps[end][1])
     if edge != false
         tail = ps[end][2]
@@ -372,6 +375,7 @@ while true
         if hi == false
             hivtx += 1
             push!(ps, (head, hivtx, ps[end][2]))
+            push!(visited, head)
         else
             if hi < ps[end][3]
                 ps[end] = (ps[end][1], ps[end][2], hi)
@@ -381,7 +385,7 @@ while true
         push!(todel, edge)
     else
         if length(ps) == 1
-            break
+            @< Handle disconnected graph @>
         else
             if ps[end][3] == ps[end-1][2]
                 @< Form biconnected component @>
@@ -413,6 +417,30 @@ while true
     end
 end
 @}
+When there are no more points to visit in the current connected component we search for a point in \texttt{V}
+which has not been visited yet (so a point not listed in the \texttt{visited} array) and we put it on the top
+of a new point stack and then let the algorithm iterate again. If there are no more new connected components 
+to visit we break the algorithm iteration and exit.
+%######################%
+@D Handle disconnected graph
+@{found = false
+pop!(ps)
+for i in 1:size(V,1)
+    if !(i in visited)
+        hivtx = 1
+        push!(ps, (i, hivtx, 1))
+        push!(visited, i)
+        found = true
+        break
+    end
+end
+if !found
+    exit = true
+end
+@}
+
+
+
 
 %%%%%%%%%%%%%%%%%
 \section{Testing}
@@ -483,9 +511,25 @@ rV, rEV = merge_vertices(rV, rEV)
     ]
 end
 
-comps = biconnected_components(rV, rEV)
+V = vcat(rV, [0 5; 1 6; 0 6])
+EV = sparse(Array{Int8, 2}([
+    [1 1 0 0 0 0 0 0 0 0]
+    [1 0 0 0 0 1 0 0 0 0]
+    [0 0 1 0 0 1 0 0 0 0]
+    [0 1 0 0 0 0 1 0 0 0]
+    [0 0 1 0 0 0 1 0 0 0]
+    [0 0 0 1 0 1 0 0 0 0]
+    [0 0 0 0 0 1 1 0 0 0]
+    [0 0 0 0 1 0 1 0 0 0]
+    [0 0 0 0 0 0 0 1 1 0]
+    [0 0 0 0 0 0 0 0 1 1]
+    [0 0 0 0 0 0 0 1 0 1]
+]))
+comps1 = biconnected_components(rV, rEV)
+comps2 = biconnected_components(V, EV)
 @@testset "biconnected_components test" begin
-    @@test comps == [[7,2,3,5,4,1]]
+    @@test comps1 == [[7,2,3,5,4,1]]
+    @@test comps2 == [[7,2,3,5,4,1],[11,10,9]]
 end
 @}
 \end{document}
