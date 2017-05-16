@@ -1,0 +1,535 @@
+\documentclass[10pt,oneside]{article}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\hypersetup{colorlinks = true}
+
+\author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
+\title{Plane intersections
+\footnote{This document is part of the \emph{Linear Algebraic Representation} (LAR.jl) framework.}
+}
+
+\begin{document}
+\maketitle
+\newpage
+
+%%%%%%%%%%%%%%%%%%
+\section{Overview}
+%%%%%%%%%%%%%%%%%%
+The \texttt{intersect.jl} script file contains a set of functions to perform intersection
+operations on the plane with $d=2$.
+@O lib/jl/intersect.jl
+@{@< Imports and aliases @>
+@< Segment intersection @>
+@< Segment fragmentation @>
+@< Planar Arrangement @>
+@< Vertices merge @>
+@< Biconnected components @>
+@}
+We define some type aliases to define the default vay to store data.
+Please note that we use the Julia's default CSC sparse matrices implementation
+to store cells.
+%####################%
+@D Imports and aliases
+@{typealias Verts Array{Float64,2}
+typealias Cells SparseMatrixCSC{Int8,Int64}
+typealias Cell SparseVector{Int8,Int64}
+@}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Segment intersection}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\label{seg_intersection}
+Here is presented a basic segment intersection function.
+It is based on the method presented here: \url{http://paulbourke.net/geometry/pointlineplane/}.
+The function works of 1-cells in $d=2$.
+The function can return 0, 1 or 2 intersection points. Two intersection points are
+returned only if both the cells are colinear and the second cell is contained in the first one.
+Each intersection is stored in a \texttt{Tuple\{Float64,Verts\}} where 
+the \texttt{Float64} is the parameter of the intersection and the \texttt{Verts} 
+is the approximate point of intersection.
+%#####################%
+@D Segment intersection
+@{function seg_intersection(V::Verts, cell1::Cell, cell2::Cell)
+    x1, y1, x2, y2 = vcat(map(c->V[c, :], cell1.nzind)...)
+    x3, y3, x4, y4 = vcat(map(c->V[c, :], cell2.nzind)...)
+    ret = Array{Tuple{Float64, Verts}, 1}()
+    denom = (y4-y3)*(x2-x1) - (x4-x3)*(y2-y1)
+    a = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / denom
+    b = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / denom
+    
+    if 0 < a < 1 && 0 < b < 1
+        p = [(x1 + a*(x2-x1))  (y1 + a*(y2-y1))]
+        push!(ret, (a, p))
+    elseif isnan(a) && isnan(b) 
+        o = [x1 y1] 
+        v = [x2 y2] - o
+        alpha = 1/dot(v,v')
+        ps = [x3 y3; x4 y4]
+        for i in 1:2
+            a = alpha*dot(v',(ps[i]-o))
+            if 0 < a < 1
+                push!(ret, (a, ps[i:i, :]))
+            end
+        end
+    end
+    return ret
+end
+@}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Segment fragmentation}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\label{seg_fragmentation}
+This function returns the new vertices and cells created by the intersection of 
+the \texttt{to\_inters} edge with the \texttt{intersectable} edges.
+\texttt{alphas} and \texttt{vertsnum} are variables used through all the function.
+%######################%
+@D Segment fragmentation
+@{function seg_fragmentation(
+    V::Verts, EV::Cells, 
+    to_inters::Cell, intersectable::Cells
+)
+    alphas = Dict{Float64, Int64}()
+    vertsnum = size(V, 1)
+
+    @< Compute the intersections @>
+    @< Add new cells to EV @>
+    
+    retV, retEV
+end
+@}
+For each cell in \texttt{intersectable} are computed the intersections with \texttt{to\_inters} via 
+the \hyperref[seg_intersection]{\texttt{seg\_intersection}} function. The intersection points are
+stored in \texttt{V} and \texttt{retV} then the parameters are coupled to the index of the newly 
+computed vertices into the \texttt{alphas} dictionary.
+%##########################%
+@D Compute the intersections
+@{retV = Verts(0, size(V, 2))
+for cell in 1:size(intersectable, 1)
+    inters = seg_intersection(V, to_inters, intersectable[cell, :])
+    while !isempty(inters)
+        alpha, point = pop!(inters)
+        V = vcat(V, point)
+        retV = vcat(retV, point)
+        alphas[alpha] = size(V,1)
+    end
+end
+@}
+We sort and iterate over the key set of \texttt{alphas}
+to fill a newly generated \texttt{retEV} matrix. As previously stated, \texttt{alphas} maps 
+the parameters of the intersections to the indices of the new vertices, so the sorting of the keys 
+is important to create coherent and consecutive cells.
+%####################%
+@D Add new cells to EV
+@{alphaskeys = sort(collect(keys(alphas)))
+alphasnum = length(alphaskeys)
+
+nvertsnum = size(V, 1)
+retEV = spzeros(Int8, alphasnum+1, nvertsnum)
+for a in 1:alphasnum
+    if a == 1
+        retEV[1, to_inters.nzind[1]] = 1
+        retEV[1, alphas[alphaskeys[a]]] = 1
+    end
+    if a == alphasnum
+        retEV[alphasnum+1, alphas[alphaskeys[a]]] = 1
+        retEV[alphasnum+1, to_inters.nzind[2]] = 1
+    else
+        retEV[a+1, alphas[alphaskeys[a]]] = 1
+        retEV[a+1, alphas[alphaskeys[a+1]]] = 1
+    end
+end
+@}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Planar Arrangement}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Given \texttt{sigma} 1-skeleton flattened on the $x_3=0$ plane and the intersections with $x_3=0$ of the 2-cells
+that can intersect \texttt{sigma}, the function returns \texttt{sigma} fully fragmented.
+%###################%
+@D Planar Arrangement
+@{function planar_arrangement(
+    Vsigma::Verts, EVsigma::Cells, 
+    Vinters::Verts, EVinters::Cells
+)
+    @< Merge data matrices @>
+    @< Build return matrices @>
+    @< Fragment cells @>
+    @< Delete marked cells @>
+
+    retV, retEV
+end
+@}
+We firstly need to merge the input data. We concatenate the vertices lists in \texttt{V} and 
+we build a big \texttt{EV} matrix to store both \texttt{EVsigma} and \texttt{EVinters}:
+\[
+    \texttt{EV} = 
+    \begin{bmatrix}
+        \begin{array}{c|c}
+            \texttt{EVsigma} & 0 \\ 
+            \hline
+            0 & \texttt{EVinters}
+        \end{array}
+    \end{bmatrix}
+\]
+%####################%
+@D Merge data matrices
+@{EVs_size = size(EVsigma)
+EVi_size = size(EVinters)
+cellsnum = EVs_size[1] + EVi_size[1]
+V = vcat(Vsigma, Vinters)
+EV = spzeros(Int8, cellsnum, EVs_size[2] + EVi_size[2])
+EV[1:EVs_size[1], 1:EVs_size[2]] = EVsigma
+EV[EVs_size[1]+1:end, EVs_size[2]+1:end] = EVinters
+@}
+Now we build the \texttt{retEV} and \texttt{retV} matrices that will store 
+the data of the fragmentation. \texttt{retEV} initially contains only the cells 
+of the 1-skeleton of \texttt{sigma} because the only original 1-cells that the 
+result should contain are the ones from \texttt{sigma} which have no intersections 
+with other cells.
+%######################%
+@D Build return matrices
+@{overtsnum = size(V, 1)  # original vertices number
+ocellsnum = EVs_size[1]  # original cells number
+retEV = hcat(EVsigma[:, :], spzeros(Int8, ocellsnum, overtsnum-EVs_size[2]))
+
+retV = V[:, :]
+@}
+For each 1-cell we compute its fragmentation with the \hyperref[seg_fragmentation]{\texttt{seg\_fragmentation}} 
+function and we push the data into the \texttt{retEV}(adding columns and rows) and \texttt{retV} matrices.
+While we iterate the cells we store into \texttt{todelete} the cells of \texttt{sigma} which 
+intersect with cells outside \texttt{sigma}.
+%###############%
+@D Fragment cells
+@{todelete = Array{Int64, 1}()
+for i in 1:cellsnum
+
+    cells = vcat(EV[1:i-1, :], EV[i+1:end, :])
+    nV, nEV = seg_fragmentation(V, EV, EV[i,:], cells)
+
+    if size(nV,1) != 0
+        ncellsnum = size(nEV, 1) # new cells number
+        nvertsnum = size(nEV-overtsnum, 2) # new vertices number
+
+        origvs_EV = nEV[:, 1:overtsnum]
+        origvs_EV = hcat(
+            origvs_EV,
+            spzeros(Int8, ncellsnum, size(retV,1)-overtsnum)
+        )
+        
+        retEV = vcat(retEV, origvs_EV)
+
+        nvs_EV = nEV[:, overtsnum+1:end]
+        nvs_EV = vcat(
+            spzeros(Int8, size(retEV,1)-ncellsnum, size(nvs_EV, 2)),
+            nvs_EV
+        )
+
+        retEV = hcat(retEV, nvs_EV)
+        
+        retV = vcat(retV, nV)
+
+        if i <= ocellsnum
+            push!(todelete, i)
+        end
+    end
+end
+@}
+We finally delete the cells marked to be deleted into the \texttt{todelete} stack.
+%####################%
+@D Delete marked cells
+@{while !isempty(todelete) 
+    i = pop!(todelete)
+    retEV = vcat(retEV[1:i-1, :], retEV[i+1:end, :])
+end
+@}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Vertices merge}
+%%%%%%%%%%%%%%%%%%%%%%%%
+We import the \texttt{NearestNeighbors.jl} package that provides a good implementation of
+the \texttt{KDTree} data structure. 
+(\url{https://github.com/KristofferC/NearestNeighbors.jl}).
+%####################%
+@D Imports and aliases
+@{using NearestNeighbors
+@}
+%###############%
+@D Vertices merge
+@{function merge_vertices(V::Verts, EV::Cells, e=10^-10.)
+    kdtree = KDTree(V')
+    tocheck = collect(size(V,1):-1:1)
+    todelete = Array{Int64, 1}()
+    @< Iterate over tocheck @>
+    @< Delete vertices in todelete @>
+    V,EV
+end
+@}
+We create two stacks: \texttt{tocheck} which contains the indices of the vertices
+to check and \texttt{todelete} that stores the indices of the vertices to delete later.
+Into \texttt{tocheck} we put all the vertices of the complex in reverse order, because
+this way we can pop from the stack the indices in order. So, until \texttt{tocheck} is not empty,
+we pop a vertex \texttt{vi} from the stack and for each coincident vertex \texttt{vj}, we put it 
+into the \texttt{todelete} stack and we sum the columns of \texttt{EV} that points to \texttt{vi} and \texttt{vj}
+%#####################%
+@D Iterate over tocheck 
+@{while !isempty(tocheck)
+    vi = pop!(tocheck)
+    if !(vi in todelete)
+        nearvs = inrange(kdtree, V[vi, :], e)
+        for vj in nearvs
+            if vj != vi
+                push!(todelete, vj)
+                EV[:,vi] = EV[:, vi] + EV[:, vj]
+            end
+        end
+    end
+end
+@}
+At last we simply delete the vertices from the \texttt{V} and their 
+corresponding columns of \texttt{EV}.
+%############################%
+@D Delete vertices in todelete
+@{while !isempty(todelete)
+    vi = pop!(todelete)
+    EV = hcat(EV[:, 1:vi-1], EV[:, vi+1:end])
+    V = vcat(V[1:vi-1, :], V[vi+1:end, :])
+end
+@}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Maximal biconnected components}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+To individuate the maximal biconnected components of the fragmented and merged 1-skeleton
+we use the well know 1973 Hopcroft-Tarjan algorithm for biconnected components (\url{doi.acm.org/10.1145/362248.362272}).
+%#######################%
+@D Biconnected components
+@{function biconnected_components(V::Verts, EV::Cells)
+    @< Declare local variables @>
+    @< Support functions @>
+    @< Depth first visit @>
+    bicon_comps
+end
+@}
+We will need a point stack (\texttt{ps}), an edge stack (\texttt{es}), a list of traversed edges (\texttt{todel}), a list of 
+visited points (\texttt{visited}), a list of biconnected components (\texttt{bicon\_comps}) and a index to avoid duplicate 
+numbering of vertices (\texttt{hivtx}). \texttt{ps} is made of triples composed by the index of the vertex in \texttt{V}, 
+the index assigned by the algorithm and the component identifier also assigned by the algorithm. \texttt{es} instead 
+contains couples with the index of the edge inside \texttt{EV} and the assigned index of the tail node. The indexes 
+in \texttt{todel} and \texttt{bicon\_comps} are relative to \texttt{EV} while the ones of \texttt{visited} are
+relative to \texttt{V}
+%########################%
+@D Declare local variables
+@{ps = Array{Tuple{Int, Int, Int}, 1}()
+es = Array{Tuple{Int, Int}, 1}()
+todel = Array{Int, 1}()
+visited = Array{Int, 1}()
+bicon_comps = Array{Array{Int, 1}, 1}()
+hivtx = 1
+@}
+Here are implemented some functions helpful throughout the algorithm.
+\texttt{an\_edge} returns the index relative to \texttt{EV} of the first edge out of \texttt{point} if exists or 
+\texttt{false} otherwise. \texttt{get\_head}, given an \texttt{edge} and a point (the \texttt{tail}), returns the 
+index relative to \texttt{V} of the head (the point that is not \texttt{tail}) of the \texttt{edge}. 
+\texttt{v\_to\_vi}, given the index relative to \texttt{V} of a vertex (\texttt{v}), returns its index using 
+the algorithm numbering. This index can also not exists; in this case \texttt{false} is returned.
+%##################%
+@D Support functions
+@{function an_edge(point)
+    edges = setdiff(EV[:, point].nzind, todel)
+    if length(edges) == 0
+        edges = [false]
+    end
+    edges[1]
+end
+
+function get_head(edge, tail)
+    setdiff(EV[edge, :].nzind, [tail])[1]
+end
+
+function v_to_vi(v)
+    i = findfirst(t->t[1]==v, ps)
+    if i == 0
+        return false
+    else
+        return ps[i][2]
+    end
+end
+@}
+The DFS visit is mostly akin to the one proposed in the Hopcroft-Tarjan original algorithm.
+The starting point is the first one in \texttt{V}.
+%##################%
+@D Depth first visit
+@{push!(ps, (1,1,1))
+push!(visited, 1)
+exit = false
+while !exit
+    edge = an_edge(ps[end][1])
+    if edge != false
+        tail = ps[end][2]
+        head = get_head(edge, ps[end][1])
+        hi = v_to_vi(head)
+        if hi == false
+            hivtx += 1
+            push!(ps, (head, hivtx, ps[end][2]))
+            push!(visited, head)
+        else
+            if hi < ps[end][3]
+                ps[end] = (ps[end][1], ps[end][2], hi)
+            end
+        end
+        push!(es, (edge, tail))
+        push!(todel, edge)
+    else
+        if length(ps) == 1
+            @< Handle disconnected graph @>
+        else
+            if ps[end][3] == ps[end-1][2]
+                @< Form biconnected component @>
+            else
+                if ps[end-1][3] > ps[end][3]
+                    ps[end-1] = (ps[end-1][1], ps[end-1][2], ps[end][3])
+                end
+            end
+            pop!(ps)
+        end
+    end
+end
+@}
+To form a biconnected component we pop edges out from the stack of edges (\texttt{es}) until we find the one
+of which the index of its tail is equal to the component identifier (called \texttt{LOWPOINT} in the original algorithm) 
+of the top point of the point stack (\texttt{ps}). We effectively put inside the \texttt{bicon\_comps} only the components
+made of more than one edge because we are interested in building a 1-skeleton of valid 2-cells.
+%###########################%
+@D Form biconnected component
+@{edges = Array{Int, 1}()
+while true
+    edge, tail = pop!(es)
+    push!(edges, edge)
+    if tail == ps[end][3]
+        if length(edges) > 1
+            push!(bicon_comps, edges)
+        end
+        break
+    end
+end
+@}
+When there are no more points to visit in the current connected component we search for a point in \texttt{V}
+which has not been visited yet (so a point not listed in the \texttt{visited} array) and we put it on the top
+of a new point stack and then let the algorithm iterate again. If there are no more new connected components 
+to visit we break the algorithm iteration and exit.
+%######################%
+@D Handle disconnected graph
+@{found = false
+pop!(ps)
+for i in 1:size(V,1)
+    if !(i in visited)
+        hivtx = 1
+        push!(ps, (i, hivtx, 1))
+        push!(visited, i)
+        found = true
+        break
+    end
+end
+if !found
+    exit = true
+end
+@}
+
+
+
+
+%%%%%%%%%%%%%%%%%
+\section{Testing}
+%%%%%%%%%%%%%%%%%
+@O test/jl/intersect.jl
+@{using Base.Test
+include("../../lib/jl/intersect.jl")
+
+V2 = [0 0; 3 3; 1 1; 2 2; 0 3; 3 0.]
+CV2 = sparse(Array{Int8, 2}([
+    [1 1 0 0 0 0]
+    [0 0 1 1 0 0]
+    [1 0 1 0 0 0]
+    [0 1 0 1 0 0]
+    [0 0 0 0 1 1]
+]))
+inters1 = seg_intersection(V2, CV2[1, :], CV2[2, :])
+inters2 = seg_intersection(V2, CV2[1, :], CV2[5, :])
+inters3 = seg_intersection(V2, CV2[3, :], CV2[4, :])
+@@testset "seg_intersection test" begin
+    @@test inters1 == [(1/3, [1. 1.]),(2/3, [2. 2.])]
+    @@test inters2 == [(.5, [1.5 1.5])]
+    @@test inters3 == []
+end
+
+V2, CV2 = seg_fragmentation(V2, CV2, CV2[1, :], CV2[2:2, :])
+@@testset "seg_fragmentation test" begin
+    @@test V2 == [2. 2.; 1. 1.]
+    @@test full(CV2) == [
+        [1 0 0 0 0 0 0 1]
+        [0 0 0 0 0 0 1 1]
+        [0 1 0 0 0 0 1 0]
+    ] 
+end
+
+Vs = [0. 0; 5 0; 2.5 4]
+EVs = sparse([1,1,2,2,3,3], [1,3,1,2,2,3], Int8(1))
+Vi = [-1. 2; 6 2]
+EVi = sparse([1,1], [1,2], Int8(1))
+rV, rEV = planar_arrangement(Vs, EVs, Vi, EVi)
+@@testset "planar_arrangement" begin
+    @@test rV == [0 0; 5 0; 2.5 4; -1 2; 6 2; 1.25 2; 3.75 2; 1.25 2; 3.75 2]
+    @@test full(rEV) == [
+        [1 1 0 0 0 0 0 0 0]
+        [1 0 0 0 0 1 0 0 0]
+        [0 0 1 0 0 1 0 0 0]
+        [0 1 0 0 0 0 1 0 0]
+        [0 0 1 0 0 0 1 0 0]
+        [0 0 0 1 0 0 0 1 0]
+        [0 0 0 0 0 0 0 1 1]
+        [0 0 0 0 1 0 0 0 1]
+    ]
+end
+
+
+rV, rEV = merge_vertices(rV, rEV)
+@@testset "merge_vertices test" begin
+    @@test rV == [0 0; 5 0; 2.5 4; -1 2; 6 2; 1.25 2; 3.75 2]
+    @@test full(rEV) == [
+        [1 1 0 0 0 0 0]
+        [1 0 0 0 0 1 0]
+        [0 0 1 0 0 1 0]
+        [0 1 0 0 0 0 1]
+        [0 0 1 0 0 0 1]
+        [0 0 0 1 0 1 0]
+        [0 0 0 0 0 1 1]
+        [0 0 0 0 1 0 1]
+    ]
+end
+
+V = vcat(rV, [0 5; 1 6; 0 6])
+EV = sparse(Array{Int8, 2}([
+    [1 1 0 0 0 0 0 0 0 0]
+    [1 0 0 0 0 1 0 0 0 0]
+    [0 0 1 0 0 1 0 0 0 0]
+    [0 1 0 0 0 0 1 0 0 0]
+    [0 0 1 0 0 0 1 0 0 0]
+    [0 0 0 1 0 1 0 0 0 0]
+    [0 0 0 0 0 1 1 0 0 0]
+    [0 0 0 0 1 0 1 0 0 0]
+    [0 0 0 0 0 0 0 1 1 0]
+    [0 0 0 0 0 0 0 0 1 1]
+    [0 0 0 0 0 0 0 1 0 1]
+]))
+comps1 = biconnected_components(rV, rEV)
+comps2 = biconnected_components(V, EV)
+@@testset "biconnected_components test" begin
+    @@test comps1 == [[7,2,3,5,4,1]]
+    @@test comps2 == [[7,2,3,5,4,1],[11,10,9]]
+end
+@}
+\end{document}
