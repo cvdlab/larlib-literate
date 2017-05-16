@@ -20,13 +20,13 @@ lib: lib_pdf lib_clean
 lib_code:
 	cp $(LIB_SRC_DIR)/*.tex ./
 	for f in *.tex; do mv -- "$$f" "$${f%.tex}.w"; done
-	nuweb -n *.w
+	for f in *.w; do nuweb -n $$f; done
 
 lib_pdf: $(LIB_SRC_DIR)/*.tex
 	make lib_code
 	
 	for f in *.tex; do pdflatex $$f; done
-	nuweb -n *.w
+	for f in *.w; do nuweb -n $$f; done
 	for f in *.tex; do pdflatex $$f; done
 	for f in *.tex; do pdflatex $$f; done
 	
