@@ -43,6 +43,8 @@ function planar_arrangement(V::Verts, EVsigma::Cells, EVints::Cells)
     @< Merge coincident vertices @>
     @< Find maximal biconnected components @>
     @< Create faces @>
+
+    V, EV, FE
 end 
 @}
 We define some aliases to standardize data formats.
@@ -278,7 +280,7 @@ V = V[tokeep, :]
 At last we delete duplicated and empty cells.
 @D Delete superfluous cells
 @{tokeep = Array{Int64, 1}()
-cells = [Set(EV[i, :].nzind) for i in 1:size(EV,1)]
+cells = [Set(EV[i, :].nzind) for i in size(EV,1):-1:1]
 i = 0
 while !isempty(cells)
     i += 1
@@ -508,5 +510,120 @@ end
 @}
 
 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Faces creation}
+
+%+++++++++++++++++++++++++++%
+\subsection{Support function}
+\label{sec:create_faces}
+@D Support functions
+@{function create_faces(V::Verts, EV::Cells)
+    edgenum, vertsnum = size(EV)
+    edge_markers = zeros(Int8, edgenum)
+    edge_angles = Array{Array{Int64, 1}, 1}(vertsnum)
+    FE = zeros(Int8, 0, edgenum)
+    @< Faces creation utilities @>
+
+    @< Compute edge angles @>
+
+    while (e = get_starting_edge()) > 0
+        face = zeros(Int8, edgenum)
+        startv, oldv = EV[e, :].nzind
+        v = -1
+        edge_markers[e] += 1
+        face[e] = sign(oldv - startv)
+        while v != startv
+            e = next_edge(oldv, e)
+            v = setdiff(EV[e, :].nzind, [oldv])[1]
+            face[e] = sign(v - oldv)
+            oldv = v
+            edge_markers[e] += 1
+        end
+        FE = [FE; reshape(face, 1, edgenum)]
+    end
+
+    sparse(FE)
+end
+@}
+The \texttt{get\_starting\_edge} function returns the first edge
+marked with zero. If there are no edges marked with zero, the first edge
+marked with one will be returned. If every edge is marked with 2 then $-1$
+will be returned.
+@D Faces creation utilities
+@{function get_starting_edge()
+    e = -1
+    for i in 1:edgenum
+        if edge_markers[i] == 0
+            return i
+        elseif edge_markers[i] == 1 && e < 0
+            e = i
+        end
+    end
+    e
+end
+@}
+
+For every vertex in the complex we compute and sort the angles
+that every edge out of the vertex forms with the $x_1$-axis.
+@D Compute edge angles
+@{function edge_angle(v::Int, edge::Cell)
+    v2 = setdiff(edge.nzind, [v])[1]
+    x, y = V[v2, :] - V[v, :]
+    return atan2(y, x)
+end
+
+for v in 1:vertsnum
+    as = [(e, edge_angle(v, EV[e, :])) for e in EV[:, v].nzind]
+    sort!(as, lt=(a,b)->a[2]<b[2])
+    as = map(a->a[1], as)
+    edge_angles[v] = as
+end
+@}
+
+The \texttt{next\_edge} function determines the next edge to visit
+while building a face. It needs a vertex index (\texttt{v}) and 
+an edge index (\texttt{e}) as input.
+
+@D Faces creation utilities
+@{function next_edge(v::Int64, e::Int64)
+    angles = edge_angles[v]
+    ne = findfirst(angles, e)
+    while true
+        ne += 1
+        if ne > length(angles)
+            ne = 1
+        end
+        if edge_markers[angles[ne]] < 2
+            break
+        end
+    end
+    angles[ne]
+end
+@}
+
+%++++++++++++++++%
+\subsection{Implementation}
+@D Create faces
+@{FE = create_faces(V, EV)
+@}
+
+%++++++++++++++++%
+\subsection{Tests}
+@D Support functions tests
+@{
+    V = [0 0; 1 1; -1 1; -1 -1; 1 -1.]
+    EV = sparse(Array{Int8, 2}([
+        [1 1 0 0 0]
+        [1 0 1 0 0]
+        [1 0 0 1 0]
+        [1 0 0 0 1]
+        [0 1 1 0 0]
+        [0 0 1 1 0]
+        [0 0 0 1 1]
+        [0 1 0 0 1]
+    ]))
+@}
 
 \end{document}
