@@ -42,6 +42,7 @@ function planar_arrangement(V::Verts, EVsigma::Cells, EVints::Cells)
     @< Put fragmentation results together @>
     @< Merge coincident vertices @>
     @< Find maximal biconnected components @>
+    @< Filter biconnected components @>
     @< Create faces @>
 
     V, EV, FE
@@ -484,6 +485,20 @@ Like for the vertices merge we simply call the freshly implemented \texttt{bicon
 @D Find maximal biconnected components
 @{bicon_comps = biconnected_components(EV)
 @}
+We also need to delete edges that are not part of a maximal biconnected component.
+@D Filter biconnected components
+@{EV = EV[union(bicon_comps...), :]
+vertinds = 1:size(EV, 2)
+todel = Array{Int64, 1}()
+for i in vertinds
+    if length(EV[:, i].nzind) == 0
+        push!(todel, i)
+    end
+end
+tokeep = setdiff(vertinds, todel)
+EV = EV[:, tokeep]
+V = V[tokeep, :]
+@}
 %++++++++++++++++%
 \subsection{Tests}
 @D Support functions tests
@@ -530,7 +545,11 @@ end
 
     while (e = get_starting_edge()) > 0
         face = zeros(Int8, edgenum)
-        startv, oldv = EV[e, :].nzind
+        if edge_markers[e] == 0
+            startv, oldv = EV[e, :].nzind
+        else
+            oldv, startv = EV[e, :].nzind
+        end
         v = -1
         edge_markers[e] += 1
         face[e] = sign(oldv - startv)
