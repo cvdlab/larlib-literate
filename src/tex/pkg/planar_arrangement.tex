@@ -276,7 +276,7 @@ the data relative to the vertices into \texttt{todelete}.
 EV = EV[:, tokeep]
 V = V[tokeep, :]
 @}
-At last we delete duplicated and empty cells.
+At last we delete duplicated, empty and broken edges.
 @D Delete superfluous cells
 @{tokeep = Array{Int64, 1}()
 cells = [Set(EV[i, :].nzind) for i in size(EV,1):-1:1]
@@ -284,7 +284,7 @@ i = 0
 while !isempty(cells)
     i += 1
     c = pop!(cells)
-    if !(isempty(c) || c in cells)
+    if !(length(c) != 2 || c in cells)
         push!(tokeep, i)
     end
 end
@@ -463,7 +463,7 @@ to visit we break the algorithm iteration and exit.
 @D Handle disconnected graph
 @{found = false
 pop!(ps)
-for i in 1:size(V,1)
+for i in 1:size(EV,2)
     if !(i in visited)
         hivtx = 1
         push!(ps, (i, hivtx, 1))
