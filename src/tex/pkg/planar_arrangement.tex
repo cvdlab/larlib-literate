@@ -1,26 +1,25 @@
-\documentclass[10pt,oneside]{article}
+\documentclass[10pt]{book}
+\usepackage{cite}
 \usepackage{hyperref}
 \usepackage{amsmath}
 \hypersetup{colorlinks = true}
 
 \author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
-\title{Planar Arrangement
-\footnote{This document is part of the \emph{Linear Algebraic Representation} (LAR.jl) framework.}
-}
+\title{Linear Algebraic Representation}
 
 \begin{document}
+
+\frontmatter
 \maketitle
-\newpage
 \tableofcontents
-\newpage
 
 
 
 
 
+\mainmatter
 
-
-
+\chapter{Planar Arrangement}
 
 %%%%%%%%%%%%%%%%%%
 \section{Overview}
@@ -126,7 +125,7 @@ end
 %--------------------------------%
 \subsubsection{Edge intersections}
 \label{sec:intersect_edges}
-We used the method presented here\footnote{\url{http://paulbourke.net/geometry/pointlineplane/}} to calculate
+We used the method presented by Bourke\cite{bourke} to calculate
 the intersection of two edges. Particular attention is needed on the case of colinear edges: it can happen
 that \texttt{edge2} is contained into the bounds of the colinear \texttt{edge1}; in this case, both points of
 \texttt{edge2} are to be considered intersection and hence must be returned. Because of this, 
@@ -257,8 +256,7 @@ end
 \subsection{Support function}
 \label{sec:merge_vertices}
 The merge of coincident is done in the \texttt{merge\_vertices}
-function. This relies on the \texttt{NearestNeighbors.jl}
-package\footnote{\url{https://github.com/KristofferC/NearestNeighbors.jl}}
+function. This relies on the \texttt{NearestNeighbors.jl} package\cite{NearestNeighbors}
 which provides a reliable implementation of the \texttt{KDTree} data structure.
 @D Imports and aliases
 @{using NearestNeighbors
@@ -373,7 +371,7 @@ end
 \subsection{Support function}
 \label{sec:biconnected_components}
 To individuate the maximal biconnected components of the fragmented and merged 1-skeleton
-we use the well know 1973 Hopcroft-Tarjan algorithm for biconnected components\footnote{\url{doi.acm.org/10.1145/362248.362272}}.
+we use the well know 1973 Hopcroft-Tarjan algorithm for biconnected components\cite{Hopcroft-Tarjan}.
 @D Planar arrangement support functions
 @{function biconnected_components(EV::Cells)
     @< Declare local variables @>
@@ -825,8 +823,8 @@ end
 
     V, EV, FE = planar_arrangement(V, EVsigma, EVints)
     err = 1e-5
-    @@test all(map((a,b)->-err<a-b<+err, V, 
-        [0.0 0.0; 2.0 0.0; 2.0 1.0; 1.0 1.0; 1.0 2.0; 0.0 2.0; 1.5 0.0; 1.5 1.5; 0.0 1.5; 1.5 1.0; 1.0 1.5]))
+    @@test all(map((a,b)->-err<a-b<+err, V, [
+        0 0; 2 0; 2 1; 1 1; 1 2; 0 2; 1.5 0; 1.5 1.5; 0 1.5; 1.5 1; 1 1.5]))
     @@test EV == [
         [0 0 0 0 0 0 1 0 0 1 0]
         [0 0 0 0 0 0 0 1 0 1 0]
@@ -853,4 +851,11 @@ end
 end
 @}
 
+
+
+\backmatter
+
+
+\bibliography{planar_arrangement}{}
+\bibliographystyle{plain}
 \end{document}

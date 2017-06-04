@@ -19,6 +19,7 @@ lib: lib_pdf lib_clean
 
 lib_code:
 	cp $(LIB_SRC_DIR)/*.tex ./
+	cp $(LIB_SRC_DIR)/*.bib ./
 	for f in *.tex; do mv -- "$$f" "$${f%.tex}.w"; done
 	for f in *.w; do nuweb -n $$f; done
 
@@ -27,12 +28,13 @@ lib_pdf: $(LIB_SRC_DIR)/*.tex
 	
 	for f in *.tex; do pdflatex $$f; done
 	for f in *.w; do nuweb -n $$f; done
+	for f in *.aux; do bibtex $$f; done
 	for f in *.tex; do pdflatex $$f; done
-#	for f in *.tex; do pdflatex $$f; done
+	for f in *.tex; do pdflatex $$f; done
 	
 lib_clean:
 	-mv -fv *.pdf $(PDF_DIR)
-	-rm -v *.tex *.w *.aux *.log *.out
+	-rm -v *.tex *.w *.aux *.log *.out *.toc *.bib *.bbl *.blg
 	
 test:
 
