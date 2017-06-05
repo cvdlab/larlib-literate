@@ -20,17 +20,17 @@ lib: lib_pdf lib_clean
 lib_code:
 	cp $(LIB_SRC_DIR)/*.tex ./
 	cp $(LIB_SRC_DIR)/*.bib ./
-	for f in *.tex; do mv -- "$$f" "$${f%.tex}.w"; done
-	for f in *.w; do nuweb -n $$f; done
+	python tex_merger.py
+	nuweb -n book
 
 lib_pdf: $(LIB_SRC_DIR)/*.tex
 	make lib_code
 	
-	for f in *.tex; do pdflatex $$f; done
-	for f in *.w; do nuweb -n $$f; done
-	for f in *.aux; do bibtex $$f; done
-	for f in *.tex; do pdflatex $$f; done
-	for f in *.tex; do pdflatex $$f; done
+	pdflatex book
+	nuweb -n book
+	bibtex book
+	pdflatex book
+	pdflatex book
 	
 lib_clean:
 	-mv -fv *.pdf $(PDF_DIR)
