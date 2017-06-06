@@ -1,0 +1,862 @@
+\documentclass[10pt]{book}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\hypersetup{colorlinks = true}
+
+\author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
+\title{Linear Algebraic Representation}
+
+\begin{document}
+
+\frontmatter
+\maketitle
+\tableofcontents
+
+
+
+
+
+\mainmatter
+
+\chapter{Planar Arrangement}
+
+%%%%%%%%%%%%%%%%%%
+\section{Overview}
+Here we present the planar arrangement algorithm. It takes the 1-skeleton of the $\sigma$ face and returns complex made of 2-cells.
+It puts \texttt{EVsigma} and \texttt{EVints} together into \texttt{EV} and then fragments every edge in \texttt{EV}. 
+When the fragmentation is done, coincident vertices are merged into one and useless edges are deleted. At last,
+2-cells are build and the result is returned.
+@O lib/jl/planar_arrangement.jl
+@{@< Imports and aliases @>
+@< Planar arrangement support functions @>
+
+function planar_arrangement(V::Verts, EVsigma::Cells, EVints::Cells)
+    @< Local variables @>
+    EV = [EVsigma; EVints]
+    edgenum = size(EV, 1)
+    for i in 1:edgenum
+        @< Fragment edge @>
+    end
+    @< Put fragmentation results together @>
+    @< Merge coincident vertices @>
+    @< Find maximal biconnected components @>
+    @< Filter biconnected components @>
+    @< Create faces @>
+
+    V, EV, FE
+end 
+@}
+We define some aliases to standardize data formats.
+@D Imports and aliases
+@{typealias Verts Array{Float64, 2}
+typealias Cells SparseMatrixCSC{Int8, Int}
+typealias Cell SparseVector{Int8, Int}
+@}
+%++++++++++++++++%
+\subsection{Tests}
+Every function responsible for the planar arrangement is accompanied by some tests.
+We start by defining a test case.
+@O test/jl/planar_arrangement.jl
+@{using Base.Test
+include("../../lib/jl/planar_arrangement.jl")
+
+@< Planar arrangement support functions tests @>
+@< General tests @>
+@}
+
+
+
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Edge fragmentation}
+%++++++++++++++++++++++++++++%
+\subsection{Support functions}
+%--------------------------------%
+\subsubsection{Edge fragmentation}
+\label{sec:frag_edge}
+The edge fragmentation is performed by using a function called \texttt{frag\_edge}.
+It fragments the edge of index \texttt{edgenum} into \texttt{EV} computing the intersections of
+it with the other edges into \texttt{EV}. It returns the updated vertices list \texttt{V} and an 
+\texttt{EV} matrix that contains the freshly computed edges.
+For every edge in \texttt{EV}, it needs to check if \texttt{edge}(the edge of index \texttt{edgenum} into 
+\texttt{EV}) intersects with it. This is done through \texttt{intersect\_edges} (see \ref{sec:intersect_edges}); 
+this function takes two edges and returns a list of the intersections of the first edge with the second one; 
+every entry of this list is a tuple made of the intersection point and a normalized intersection parameter. 
+When there is an intersection, the new point is be pushed into the \texttt{V} matrix while the parameter 
+is stored into the \texttt{alphas} dictionary as a key coupled to the new point index.
+When every possible intersection is found, the keys in \texttt{alphas} are sorted and, on the base of that,
+a new \texttt{EV} is computed.
+@D Planar arrangement support functions
+@{function frag_edge(V::Verts, EV::Cells, edgenum::Int)
+    alphas = Dict{Float64, Int}()
+    edge = EV[edgenum, :]
+    for i in 1:size(EV, 1)
+        if i != edgenum
+            intersection = intersect_edges(V, edge, EV[i, :])
+            for (point, alpha) in intersection
+                V = [V; point]
+                alphas[alpha] = size(V, 1)
+            end
+        end
+    end
+
+    alphas[0.0], alphas[1.0] = edge.nzind
+
+    alphas_keys = sort(collect(keys(alphas)))
+    cells_num = length(alphas_keys)-1
+    verts_num = size(V, 1)
+    EV = spzeros(Int8, cells_num, verts_num)
+
+    for i in 1:cells_num
+        EV[i, alphas[alphas_keys[i]]] = 1
+        EV[i, alphas[alphas_keys[i+1]]] = 1
+    end
+
+    V, EV
+end
+@}
+%--------------------------------%
+\subsubsection{Edge intersections}
+\label{sec:intersect_edges}
+We used the method presented by Bourke\cite{bourke} to calculate
+the intersection of two edges. Particular attention is needed on the case of colinear edges: it can happen
+that \texttt{edge2} is contained into the bounds of the colinear \texttt{edge1}; in this case, both points of
+\texttt{edge2} are to be considered intersection and hence must be returned. Because of this, 
+the intersections are returned as a list than can contain from zero to two elements; 
+each element is a couple \texttt{\{Verts, Float64\}} which represent the intersection
+point and a parameter that is useful for sorting the fragmentation points of an edge.
+@D Planar arrangement support functions
+@{function intersect_edges(V::Verts, edge1::Cell, edge2::Cell)
+    x1, y1, x2, y2 = vcat(map(c->V[c, :], edge1.nzind)...)
+    x3, y3, x4, y4 = vcat(map(c->V[c, :], edge2.nzind)...)
+    ret = Array{Tuple{Verts, Float64}, 1}()
+    denom = (y4-y3)*(x2-x1) - (x4-x3)*(y2-y1)
+    a = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / denom
+    b = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / denom
+    
+    if 0 < a < 1 && 0 < b < 1
+        p = [(x1 + a*(x2-x1))  (y1 + a*(y2-y1))]
+        push!(ret, (p, a))
+    elseif isnan(a) && isnan(b) 
+        @< Handle colinear edges @>
+    end
+    return ret
+end
+@}
+
+If the $\langle$ Handle colinear edges $\rangle$ macro is run, we are sure that the four vertices of 
+\texttt{edge1} and \texttt{edge2} are colinear. So, to find if \texttt{edge2} has one or both of 
+its vertices inside \texttt{edge1} we follow this procedure:
+\begin{enumerate}
+\item We parametrize \texttt{edge1}:
+\[
+    p = p_1 + \alpha(p_2-p_1), \quad\alpha\in[0, 1]
+\]
+Where $p_1$ and $p_2$ are the vertices of \texttt{edge1}
+\item We solve for $\alpha$:
+\begin{gather*}
+    o = p_1, \quad\vec{v} = p_2 - p_1 \\
+    p = o + \alpha\vec{v} \\
+    p - o = \alpha\vec{v} \\
+    \vec{v}^\top\cdot(p-o) = \alpha (\vec{v}^\top\cdot\vec{v}) \\
+    \alpha = \frac{\vec{v}^\top\cdot(p-o)}{\vec{v}^\top\cdot\vec{v}}
+\end{gather*}
+\item We replace $p$ of the last equation with both the vertices of \texttt{edge2}.
+If the result is $\in[0,1]$ then an intersection is found.
+\end{enumerate} 
+@D Handle colinear edges
+@{o = [x1 y1] 
+v = [x2 y2] - o
+alpha = 1/dot(v,v')
+ps = [x3 y3; x4 y4]
+for i in 1:2
+    a = alpha*dot(v',(reshape(ps[i, :], 1, 2)-o))
+    if 0 < a < 1
+        push!(ret, (ps[i:i, :], a))
+    end
+end
+@}
+%+++++++++++++++++++++++++%
+\subsection{Implementation}
+When we need to fragment an \texttt{edge} we use the \texttt{frag\_edge} function (see \ref{sec:frag_edge}) 
+and we simply update \texttt{V} and push the small \texttt{ev} matrix into a list of cells called \texttt{EVs}.
+We also keep the number of cells into \texttt{finalcells\_num} to build \texttt{EV} with ease.
+@D Fragment edge
+@{V, ev = frag_edge(V, EV, i)
+finalcells_num += size(ev, 1)
+push!(EVs, ev)
+@}
+We declare \texttt{EVs} and \texttt{finalcells\_num} as local variables of \texttt{planar\_arrangement}.
+@D Local variables
+@{EVs = Array{Cells, 1}()
+finalcells_num = 0
+@}
+So now we have a \texttt{V} that contains the original points with the points computed with the fragmentation
+and \texttt{EVs}, a list of edges matrices. We must now put the entries of this list together to form an unique
+\texttt{EV} matrix. The process is not immediate because every entry of the list has columns relative to the 
+number of vertices in \texttt{V} at the moment of the computation.
+@D Put fragmentation results together
+@{EV = spzeros(Int8, finalcells_num, size(V,1))
+newcell_index = 1
+for ev in EVs
+    s = size(ev)
+    EV[newcell_index:newcell_index+s[1]-1, 1:s[2]] = ev
+    newcell_index += s[1]
+end
+@}
+%++++++++++++++++%
+\subsection{Tests}
+@D Planar arrangement support functions tests
+@{V = [0 0; 2 0; 1 1.5; -1 1; 3 1; -1 0; 3 0]
+EVsigma = sparse(Array{Int8, 2}([
+    [1 1 0 0 0 0 0]
+    [0 1 1 0 0 0 0]
+    [1 0 1 0 0 0 0]
+]))
+EVints = sparse(Array{Int8, 2}([
+    [0 0 0 1 1 0 0]
+    [0 0 0 0 0 1 1]
+]))
+
+@@testset "intersect_edges test" begin
+    inters1 = intersect_edges(V, EVints[2, :], EVsigma[1, :])
+    inters2 = intersect_edges(V, EVsigma[1, :], EVints[1, :])
+    inters3 = intersect_edges(V, EVsigma[1, :], EVsigma[2, :])
+    @@test inters1 == [([0. 0.], 1/4),([2. 0.], 3/4)]
+    @@test inters2 == []
+    @@test inters3 == []
+end
+
+@@testset "frag_edge test" begin
+    rV, rEV = frag_edge(V, [EVsigma; EVints], 5)
+    @@test rV == [V; [0 0; 2 0]]
+    @@test full(rEV) == [
+        [0 0 0 0 0 1 0 1 0]
+        [0 0 0 0 0 0 0 1 1]
+        [0 0 0 0 0 0 1 0 1]
+    ]
+end
+@}
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Coincident vertices merge}
+%++++++++++++++++++++++++++++%
+\subsection{Support function}
+\label{sec:merge_vertices}
+The merge of coincident is done in the \texttt{merge\_vertices}
+function. This relies on the \texttt{NearestNeighbors.jl} package\cite{NearestNeighbors}
+which provides a reliable implementation of the \texttt{KDTree} data structure.
+@D Imports and aliases
+@{using NearestNeighbors
+@}
+@D Planar arrangement support functions
+@{function merge_vertices(V::Verts, EV::Cells, err=1e-10)
+    kdtree = KDTree(V')
+    tocheck = collect(size(V,1):-1:1)
+    todelete = Array{Int64, 1}()
+    @< Iterate over tocheck @>
+    @< Delete vertices in todelete @>
+    @< Delete superfluous cells @>
+    V,EV
+end
+@}
+We create two stacks: \texttt{tocheck} which contains the indices of the vertices
+to check and \texttt{todelete} that stores the indices of the vertices to delete later.
+Into \texttt{tocheck} we put all the vertices of the complex in reverse order (in
+this way we can pop from the stack the indices in crescent order). So, until \texttt{tocheck} is not empty,
+we pop a vertex \texttt{vi} from the stack and for each coincident vertex \texttt{vj}, we put it 
+into the \texttt{todelete} stack and we sum the columns of \texttt{EV} relative to \texttt{vi} and \texttt{vj}
+@D Iterate over tocheck 
+@{while !isempty(tocheck)
+    vi = pop!(tocheck)
+    if !(vi in todelete)
+        nearvs = inrange(kdtree, V[vi, :], err)
+        for vj in nearvs
+            if vj != vi
+                push!(todelete, vj)
+                EV[:,vi] = EV[:, vi] + EV[:, vj]
+            end
+        end
+    end
+end
+@}
+We then calculate the vertices to keep and we filter out
+the data relative to the vertices into \texttt{todelete}.
+@D Delete vertices in todelete
+@{tokeep = setdiff(collect(1:size(V,1)), todelete)
+EV = EV[:, tokeep]
+V = V[tokeep, :]
+@}
+At last we delete duplicated, empty and broken edges.
+@D Delete superfluous cells
+@{tokeep = Array{Int64, 1}()
+cells = [Set(EV[i, :].nzind) for i in size(EV,1):-1:1]
+i = 0
+while !isempty(cells)
+    i += 1
+    c = pop!(cells)
+    if !(length(c) != 2 || c in cells)
+        push!(tokeep, i)
+    end
+end
+EV = EV[tokeep, :]
+@}
+%+++++++++++++++++++++++++%
+\subsection{Implementation}
+We simply call \texttt{merge\_vertices} (see \ref{sec:merge_vertices}).
+@D Merge coincident vertices
+@{V, EV = merge_vertices(V, EV)
+@}
+%++++++++++++++++%
+\subsection{Tests}
+@D Planar arrangement support functions tests
+@{
+n0 = 1e-12
+n1l = 1-1e-12
+n1u = 1+1e-12
+V = [
+    [n0 n0; -n0 n0; n0 -n0; -n0 -n0]
+    [n0 n1u; -n0 n1u; n0 n1l; -n0 n1l]
+    [n1u n1u; n1l n1u; n1u n1l; n1l n1l]
+    [n1u n0; n1l n0; n1u -n0; n1l -n0]
+]
+EV = sparse(Array{Int8, 2}([
+    [1 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0]
+    [0 1 0 0 0 1 0 0 0 0 0 0 0 0 0 0]
+    [0 0 1 0 0 0 1 0 0 0 0 0 0 0 0 0]
+    [0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 0]
+    [0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0]
+    [0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0]
+    [0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0]
+    [0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0]
+    [0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0]
+    [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
+    [0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 0]
+    [0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1]
+    [1 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0]
+    [0 1 0 0 0 0 0 0 0 0 0 0 0 1 0 0]
+    [0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0]
+    [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1]
+]))
+V, EV = merge_vertices(V, EV)
+@@testset "merge_vertices test" begin
+    @@test V == [n0 n0; n0 n1u; n1u n1u; n1u n0]
+    @@test full(EV) == [
+        [1 1 0 0]
+        [0 1 1 0]
+        [0 0 1 1]
+        [1 0 0 1]
+    ]
+end
+@}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Maximal biconnected components}
+%+++++++++++++++++++++++++++%
+\subsection{Support function}
+\label{sec:biconnected_components}
+To individuate the maximal biconnected components of the fragmented and merged 1-skeleton
+we use the well know 1973 Hopcroft-Tarjan algorithm for biconnected components\cite{Hopcroft-Tarjan}.
+@D Planar arrangement support functions
+@{function biconnected_components(EV::Cells)
+    @< Declare local variables @>
+    @< DFS utilities @>
+    @< Depth first visit @>
+    bicon_comps
+end
+@}
+We will need a point stack (\texttt{ps}), an edge stack (\texttt{es}), a list of traversed edges (\texttt{todel}), a list of 
+visited points (\texttt{visited}), a list of biconnected components (\texttt{bicon\_comps}) and a index to avoid duplicate 
+numbering of vertices (\texttt{hivtx}). \texttt{ps} is made of triples composed by the index of the vertex in \texttt{V}, 
+the index assigned by the algorithm and the component identifier also assigned by the algorithm. \texttt{es} instead 
+contains couples with the index of the edge inside \texttt{EV} and the assigned index of the tail node. The indexes 
+in \texttt{todel} and \texttt{bicon\_comps} are relative to \texttt{EV} while the ones of \texttt{visited} are
+relative to \texttt{V}
+@D Declare local variables
+@{ps = Array{Tuple{Int, Int, Int}, 1}()
+es = Array{Tuple{Int, Int}, 1}()
+todel = Array{Int, 1}()
+visited = Array{Int, 1}()
+bicon_comps = Array{Array{Int, 1}, 1}()
+hivtx = 1
+@}
+Here are implemented some functions helpful throughout the algorithm.
+\texttt{an\_edge} returns the index relative to \texttt{EV} of the first edge out of \texttt{point} if exists or 
+\texttt{false} otherwise. \texttt{get\_head}, given an \texttt{edge} and a point (the \texttt{tail}), returns the 
+index relative to \texttt{V} of the head (the point that is not \texttt{tail}) of the \texttt{edge}. 
+\texttt{v\_to\_vi}, given the index relative to \texttt{V} of a vertex (\texttt{v}), returns its index using 
+the algorithm numbering. This index can also not exists; in this case \texttt{false} is returned.
+@D DFS utilities
+@{function an_edge(point)
+    edges = setdiff(EV[:, point].nzind, todel)
+    if length(edges) == 0
+        edges = [false]
+    end
+    edges[1]
+end
+
+function get_head(edge, tail)
+    setdiff(EV[edge, :].nzind, [tail])[1]
+end
+
+function v_to_vi(v)
+    i = findfirst(t->t[1]==v, ps)
+    if i == 0
+        return false
+    else
+        return ps[i][2]
+    end
+end
+@}
+The DFS visit is mostly akin to the one proposed in the Hopcroft-Tarjan original algorithm.
+The starting point is the first one in \texttt{V}.
+@D Depth first visit
+@{push!(ps, (1,1,1))
+push!(visited, 1)
+exit = false
+while !exit
+    edge = an_edge(ps[end][1])
+    if edge != false
+        tail = ps[end][2]
+        head = get_head(edge, ps[end][1])
+        hi = v_to_vi(head)
+        if hi == false
+            hivtx += 1
+            push!(ps, (head, hivtx, ps[end][2]))
+            push!(visited, head)
+        else
+            if hi < ps[end][3]
+                ps[end] = (ps[end][1], ps[end][2], hi)
+            end
+        end
+        push!(es, (edge, tail))
+        push!(todel, edge)
+    else
+        if length(ps) == 1
+            @< Handle disconnected graph @>
+        else
+            if ps[end][3] == ps[end-1][2]
+                @< Form biconnected component @>
+            else
+                if ps[end-1][3] > ps[end][3]
+                    ps[end-1] = (ps[end-1][1], ps[end-1][2], ps[end][3])
+                end
+            end
+            pop!(ps)
+        end
+    end
+end
+@}
+To form a biconnected component we pop edges out from the stack of edges (\texttt{es}) until we find the one
+of which the index of its tail is equal to the component identifier (called \texttt{LOWPOINT} in the original algorithm) 
+of the top point of the point stack (\texttt{ps}). We effectively put inside the \texttt{bicon\_comps} only the components
+made of more than one edge because we are interested in building a 1-skeleton of valid 2-cells.
+@D Form biconnected component
+@{edges = Array{Int, 1}()
+while true
+    edge, tail = pop!(es)
+    push!(edges, edge)
+    if tail == ps[end][3]
+        if length(edges) > 1
+            push!(bicon_comps, edges)
+        end
+        break
+    end
+end
+@}
+When there are no more points to visit in the current connected component we search for a point in \texttt{V}
+which has not been visited yet (so a point not listed in the \texttt{visited} array) and we put it on the top
+of a new point stack and then let the algorithm iterate again. If there are no more new connected components 
+to visit we break the algorithm iteration and exit.
+@D Handle disconnected graph
+@{found = false
+pop!(ps)
+for i in 1:size(EV,2)
+    if !(i in visited)
+        hivtx = 1
+        push!(ps, (i, hivtx, 1))
+        push!(visited, i)
+        found = true
+        break
+    end
+end
+if !found
+    exit = true
+end
+@}
+%+++++++++++++++++++++++++%
+\subsection{Implementation}
+Like for the vertices merge we simply call the freshly implemented \texttt{biconnected\_components} function
+(see \ref{sec:biconnected_components}).
+@D Find maximal biconnected components
+@{bicon_comps = biconnected_components(EV)
+@}
+We also need to delete edges that are not part of a maximal biconnected component.
+Once we delete the cells, we also need to check if there are isolated vertices and then
+delete them from both \texttt{V} and \texttt{EV}.
+@D Filter biconnected components
+@{EV = EV[union(bicon_comps...), :]
+vertinds = 1:size(EV, 2)
+todel = Array{Int64, 1}()
+for i in vertinds
+    if length(EV[:, i].nzind) == 0
+        push!(todel, i)
+    end
+end
+tokeep = setdiff(vertinds, todel)
+EV = EV[:, tokeep]
+V = V[tokeep, :]
+@}
+%++++++++++++++++%
+\subsection{Tests}
+@D Planar arrangement support functions tests
+@{EV = sparse(Array{Int8, 2}([
+    [1 0 0 0 0 0 1 0 0 0 0 0]   #1
+    [1 0 0 1 0 0 0 0 0 0 0 0]   #2
+    [0 0 0 1 1 0 0 0 0 0 0 0]   #3
+    [0 0 0 0 1 0 1 0 0 0 0 0]   #4
+    [0 1 0 0 0 1 0 0 0 0 0 0]   #5
+    [0 1 0 0 0 0 0 1 0 0 0 0]   #6
+    [0 0 1 0 0 0 0 1 0 0 0 0]   #7
+    [0 0 1 0 0 1 0 0 0 0 0 0]   #8
+    [0 0 0 0 0 0 1 0 1 0 0 0]   #9
+    [0 0 0 0 0 0 0 0 1 1 0 0]   #10
+    [0 0 0 0 0 0 0 0 1 0 1 0]   #11
+    [0 0 0 0 0 0 0 0 1 0 0 1]   #12
+]))
+
+bc = biconnected_components(EV)
+bc = Set(map(Set, bc))
+@@testset "biconnected_components test" begin
+    @@test bc == Set([Set([1,2,3,4]), Set([5,6,7,8])])
+end
+@}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Faces creation}
+%+++++++++++++++++++++++++++%
+\subsection{Support function}
+\label{sec:create_faces}
+
+As last step, we need to compute the boundary of the 2-faces.
+To do that we define the \texttt{create\_faces}.
+
+@D Planar arrangement support functions
+@{function create_faces(V::Verts, EV::Cells)
+    edgenum, vertsnum = size(EV)
+    edge_markers = zeros(Int8, edgenum)
+    edge_angles = Array{Array{Int64, 1}, 1}(vertsnum)
+    FE = zeros(Int8, 0, edgenum)
+    @< Faces creation utilities @>
+
+    @< Compute edge angles @>
+
+    while (e = get_starting_edge()) > 0
+        face = zeros(Int8, edgenum)
+        if edge_markers[e] == 0
+            startv, oldv = EV[e, :].nzind
+        else
+            oldv, startv = EV[e, :].nzind
+        end
+        v = -1
+        edge_markers[e] += 1
+        face[e] = sign(oldv - startv)
+        while v != startv
+            e = next_edge(oldv, e)
+            v = setdiff(EV[e, :].nzind, [oldv])[1]
+            face[e] = sign(v - oldv)
+            oldv = v
+            edge_markers[e] += 1
+        end
+        FE = [FE; reshape(face, 1, edgenum)]
+    end
+
+    sparse(FE)
+end
+@}
+The \texttt{get\_starting\_edge} function returns the first edge
+marked with zero. If there are no edges marked with zero, the first edge
+marked with one will be returned. If every edge is marked with 2 then $-1$
+will be returned.
+@D Faces creation utilities
+@{function get_starting_edge()
+    e = -1
+    for i in 1:edgenum
+        if edge_markers[i] == 0
+            return i
+        elseif edge_markers[i] == 1 && e < 0
+            e = i
+        end
+    end
+    e
+end
+@}
+
+We define a function to compute the angle between an edge and the 
+$x_1$-axis and we apply it to every edge out of every vertex.
+The angles relative to a single vertex are then sorted in counterclockwise order.
+
+@D Compute edge angles
+@{function edge_angle(v::Int, edge::Cell)
+    v2 = setdiff(edge.nzind, [v])[1]
+    x, y = V[v2, :] - V[v, :]
+    return atan2(y, x)
+end
+
+for v in 1:vertsnum
+    as = [(e, edge_angle(v, EV[e, :])) for e in EV[:, v].nzind]
+    sort!(as, lt=(a,b)->a[2]<b[2])
+    as = map(a->a[1], as)
+    edge_angles[v] = as
+end
+@}
+
+The \texttt{next\_edge} function determines the next edge to visit
+while building a face. It needs a vertex index (\texttt{v}) and 
+an edge index (\texttt{e}) as input.
+
+@D Faces creation utilities
+@{function next_edge(v::Int64, e::Int64)
+    angles = edge_angles[v]
+    ne = findfirst(angles, e)
+    while true
+        ne += 1
+        if ne > length(angles)
+            ne = 1
+        end
+        if edge_markers[angles[ne]] < 2
+            break
+        end
+    end
+    angles[ne]
+end
+@}
+
+%++++++++++++++++%
+\subsection{Implementation}
+Back in the \texttt{planar\_arrangement} function, we simply store the signed boundary matrix.
+@D Create faces
+@{FE = create_faces(V, EV)
+@}
+
+%++++++++++++++++%
+\subsection{Tests}
+@D Planar arrangement support functions tests
+@{@@testset "create_faces test" begin
+    V = [0 0; 1 1; -1 1; -1 -1; 1 -1.]
+    EV = sparse(Array{Int8, 2}([
+        [1 1 0 0 0]
+        [1 0 1 0 0]
+        [1 0 0 1 0]
+        [1 0 0 0 1]
+        [0 1 1 0 0]
+        [0 0 1 1 0]
+        [0 0 0 1 1]
+        [0 1 0 0 1]
+    ]))
+
+    FE = create_faces(V, EV)
+    
+    @@test FE == sparse(Array{Int8, 2}([
+        [1 0 0 -1 0 0 0 1] 
+        [-1 1 0 0 -1 0 0 0]
+        [0 -1 1 0 0 -1 0 0]
+        [0 0 0 0 1 1 1 -1]
+        [0 0 -1 1 0 0 -1 0]
+    ]))
+end
+@}
+
+
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%
+\section{General tests}
+
+Here we present some general tests for the \texttt{planar\_arrangement} function
+
+%+++++++++++++++++%
+\subsection{Test 1}
+@D General tests
+@{@@testset "General test #1" begin
+    V = [0 0; 2 0; 1 1.5; -1 1; 3 1; -1 0; 3 0]
+    EVsigma = sparse(Array{Int8, 2}([
+        [1 1 0 0 0 0 0]
+        [0 1 1 0 0 0 0]
+        [1 0 1 0 0 0 0]
+    ]))
+    EVints = sparse(Array{Int8, 2}([
+        [0 0 0 1 1 0 0]
+        [0 0 0 0 0 1 1]
+    ]))
+
+    V, EV, FE = planar_arrangement(V, EVsigma, EVints)
+    err = 1e-5
+    @@test all(map((a,b)->-err<a-b<+err, V, [
+        [0.0 0.0]
+        [2.0 0.0]
+        [1.0 1.5]
+        [1.33333 1.0]
+        [0.666667 1.0]
+    ]))
+    @@test EV == [0 0 0 1 1; 1 1 0 0 0; 0 1 0 1 0; 0 0 1 1 0; 0 0 1 0 1; 1 0 0 0 1]
+    @@test FE == [1 0 0 1 -1 0; 0 1 1 -1 1 -1; -1 -1 -1 0 0 1]
+end
+@}
+
+%+++++++++++++++++%
+\subsection{Test 2}
+@D General tests
+@{@@testset "General test #2" begin
+    V = [
+        [0 0]
+        [1 0]
+        [1 1]
+        [0 1]
+        [-.05 .5]
+        [1.05 .5]
+        [.5 .55]
+        [.5 -.05]
+        [.45 .25]
+        [1.05 .25]
+        [.75 .3]
+        [.75 -.05]
+    ]
+    EVsigma = sparse(Array{Int8, 2}([
+        [1 1 0 0 0 0 0 0 0 0 0 0]
+        [0 1 1 0 0 0 0 0 0 0 0 0]
+        [0 0 1 1 0 0 0 0 0 0 0 0]
+        [1 0 0 1 0 0 0 0 0 0 0 0]
+    ]))
+    EVints = sparse(Array{Int8, 2}([
+        [0 0 0 0 1 1 0 0 0 0 0 0]
+        [0 0 0 0 0 0 1 1 0 0 0 0]
+        [0 0 0 0 0 0 0 0 1 1 0 0]
+        [0 0 0 0 0 0 0 0 0 0 1 1]
+    ]))
+
+    V, EV, FE = planar_arrangement(V, EVsigma, EVints)
+    err = 1e-5
+    @@test all(map((a,b)->-err<a-b<+err, V, 
+        [0 0; 1 0; 1 1; 0 1; .5 0; .75 0; 1 .5; 1 .25; 0 .5; .5 .5; .5 .25; .75 .25]))
+    @@test EV == [
+        [0 0 0 0 0 1 0 0 0 0 0 1]
+        [0 0 0 0 0 0 0 1 0 0 0 1]
+        [0 0 0 0 0 0 0 0 0 0 1 1]
+        [0 0 0 0 1 0 0 0 0 0 1 0]
+        [0 0 0 0 0 0 0 0 0 1 1 0]
+        [0 0 0 0 0 0 1 0 0 1 0 0]
+        [0 0 0 0 0 0 0 0 1 1 0 0]
+        [1 0 0 0 0 0 0 0 1 0 0 0]
+        [0 0 0 1 0 0 0 0 1 0 0 0]
+        [0 0 1 1 0 0 0 0 0 0 0 0]
+        [0 0 1 0 0 0 1 0 0 0 0 0]
+        [0 0 0 0 0 0 1 1 0 0 0 0]
+        [0 1 0 0 0 0 0 1 0 0 0 0]
+        [0 1 0 0 0 1 0 0 0 0 0 0]
+        [0 0 0 0 1 1 0 0 0 0 0 0]
+        [1 0 0 0 1 0 0 0 0 0 0 0]
+    ]
+    @@test FE == [
+        [1 -1 0 0 0 0 0 0 0 0 0 0 -1 1 0 0]
+        [-1 0 1 1 0 0 0 0 0 0 0 0 0 0 -1 0]
+        [0 0 0 -1 1 0 1 1 0 0 0 0 0 0 0 -1]
+        [0 0 0 0 0 1 -1 0 -1 -1 1 0 0 0 0 0]
+        [0 1 -1 0 -1 -1 0 0 0 0 0 1 0 0 0 0]
+        [0 0 0 0 0 0 0 -1 1 1 -1 -1 1 -1 1 1]
+    ]
+end
+@}
+
+%+++++++++++++++++%
+\subsection{Test 3}
+@D General tests
+@{@@testset "General test #3" begin
+    V = [
+        [0 0]
+        [2 0]
+        [2 1]
+        [1 1]
+        [1 2]
+        [0 2]
+        [1.5 0]
+        [1.5 1.5]
+        [0 1.5]
+    ]
+
+    EVsigma = sparse(Array{Int8, 2}([
+        [1 1 0 0 0 0 0 0 0]
+        [0 1 1 0 0 0 0 0 0]
+        [0 0 1 1 0 0 0 0 0]
+        [0 0 0 1 1 0 0 0 0]
+        [0 0 0 0 1 1 0 0 0]
+        [1 0 0 0 0 1 0 0 0]
+    ]))
+    EVints = sparse(Array{Int8, 2}([
+        [1 0 0 0 0 0 1 0 0]
+        [0 0 0 0 0 0 1 1 0]
+        [0 0 0 0 0 0 0 1 1]
+        [1 0 0 0 0 0 0 0 1]
+    ]))
+
+    V, EV, FE = planar_arrangement(V, EVsigma, EVints)
+    err = 1e-5
+    @@test all(map((a,b)->-err<a-b<+err, V, [
+        0 0; 2 0; 2 1; 1 1; 1 2; 0 2; 1.5 0; 1.5 1.5; 0 1.5; 1.5 1; 1 1.5]))
+    @@test EV == [
+        [0 0 0 0 0 0 1 0 0 1 0]
+        [0 0 0 0 0 0 0 1 0 1 0]
+        [0 0 0 0 0 0 0 1 0 0 1]
+        [1 0 0 0 0 0 0 0 1 0 0]
+        [0 0 0 0 0 0 0 0 1 0 1]
+        [0 0 0 0 0 1 0 0 1 0 0]
+        [0 0 0 0 1 1 0 0 0 0 0]
+        [0 0 0 0 1 0 0 0 0 0 1]
+        [0 0 0 1 0 0 0 0 0 0 1]
+        [0 0 0 1 0 0 0 0 0 1 0]
+        [0 0 1 0 0 0 0 0 0 1 0]
+        [0 1 1 0 0 0 0 0 0 0 0]
+        [0 1 0 0 0 0 1 0 0 0 0]
+        [1 0 0 0 0 0 1 0 0 0 0]
+    ]
+    @@test FE == [
+        [1 0 0 0 0 0 0 0 0 0 -1 -1 1 0]
+        [0 1 -1 0 0 0 0 0 1 -1 0 0 0 0]
+        [-1 0 0 1 1 0 0 0 -1 1 0 0 0 -1]
+        [0 -1 1 -1 0 1 1 -1 0 0 1 1 -1 1]
+        [0 0 0 0 -1 -1 -1 1 0 0 0 0 0 0]
+    ]
+end
+@}
+
+
+
+\backmatter
+
+
+\bibliography{book}{}
+\bibliographystyle{plain}
+\end{document}

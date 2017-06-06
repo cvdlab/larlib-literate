@@ -1,0 +1,134 @@
+\documentclass[10pt]{book}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\hypersetup{colorlinks = true}
+
+\author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
+\title{Linear Algebraic Representation}
+
+\begin{document}
+
+\frontmatter
+\maketitle
+\tableofcontents
+
+\mainmatter
+
+\chapter{Introduction}
+
+\section{Testing nuweb}
+Now we are testing nuweb by doing a simple Julia script. Here the structure of the script:
+@O lib/jl/LARLIB.jl
+@{# This a test in Julia
+module LARLIB
+@< Do some calculations @>
+@< Print result @>
+end
+@< Functions @>
+@}
+
+Now some calculations:
+@D Do some calculations
+@{var = 7 * 6
+@}
+
+And print the result on standard output:
+@D Print result
+@{println("Result: ", var)
+@}
+
+@D Functions
+@{function lar2plasm(EV, FE)
+    EV = sparse(EV)
+    faces = Array{Array{Int64, 1}, 1}()
+
+    for f in 1:size(FE, 1)
+        verts = Array{Int64, 1}()
+        done = Array{Int64, 1}()
+        face = FE[f, :]
+        edges = EV[face.nzind, :]
+
+        push!(done, 1)
+        vs = edges[1, :].nzind
+        if face.nzval[1] < 0
+            vs = vs[end:-1:1]
+        end
+        startv, nextv = vs
+        push!(verts, startv)
+
+        while nextv != startv
+            println(edges[:, nextv].nzind, "; done: ", done)
+            e = setdiff(edges[:, nextv].nzind, done)[1]
+            push!(done, e)
+            vs = edges[e, :].nzind
+            if face.nzval[e] < 0
+                vs = vs[end:-1:1]
+            end
+            curv, nextv = vs
+            push!(verts, curv)
+        end
+
+        push!(faces, verts)
+    end
+
+    println("FV = ", string(faces)[15:end])
+end
+
+function lar2py(V, EV)
+    print("V = [[0,0]")
+    for i in 1:size(V, 1)
+        print(",", vec(V[i, :]))
+    end
+    println("]")
+    
+    print("EV = [")
+    for i in 1:size(EV, 1)
+        if i > 1 print(",") end
+        print(EV[i, :].nzind)
+    end
+    println("]")
+end
+
+function generate(nv)
+    ne = Int(floor(nv/2))
+    
+    V = Array{Float64, 2}(nv, 2)
+    as = 2*pi*rand(nv)
+    for i in 1:nv
+        a = as[i]
+        V[i, :] = [.5*cos(a)+.5 .5*sin(a)+.5]
+    end
+    
+    V = [V; .25 .25; .75 .25; .75 .75; .25 .75]
+    
+
+    EVsigma = spzeros(Int8, 4, nv+4)
+    EVsigma[:, nv+1:nv+4] = [1 1 0 0; 0 1 1 0; 0 0 1 1; 1 0 0 1]
+
+    EVints = spzeros(Int8, ne, nv+4)
+    for i in 1:ne
+        EVints[i, 2*i-1:2*i] = 1
+    end
+    
+    lar2py(V,EVints)
+    
+    println("######################")
+    V, EV, FE = planar_arrangement(V, EVsigma, EVints)
+    
+    lar2py(V, EV)
+    lar2plasm(EV, FE)
+end
+@}
+
+
+Good, it seems to work fine.
+
+
+\backmatter
+
+
+\bibliography{book}{}
+\bibliographystyle{plain}
+\end{document}
