@@ -77,17 +77,15 @@ include("../../lib/jl/planar_arrangement.jl")
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Edge fragmentation}
-%++++++++++++++++++++++++++++%
-\subsection{Support functions}
-%--------------------------------%
-\subsubsection{Edge fragmentation}
+%+++++++++++++++++++++++++++%
+\subsection{Support function}
 \label{sec:frag_edge}
 The edge fragmentation is performed by using a function called \texttt{frag\_edge}.
 It fragments the edge of index \texttt{edgenum} into \texttt{EV} computing the intersections of
 it with the other edges into \texttt{EV}. It returns the updated vertices list \texttt{V} and an 
 \texttt{EV} matrix that contains the freshly computed edges.
 For every edge in \texttt{EV}, it needs to check if \texttt{edge}(the edge of index \texttt{edgenum} into 
-\texttt{EV}) intersects with it. This is done through \texttt{intersect\_edges} (see \ref{sec:intersect_edges}); 
+\texttt{EV}) intersects with it. This is done through \texttt{intersect\_edges} (ref. \ref{sec:intersect_edges}); 
 this function takes two edges and returns a list of the intersections of the first edge with the second one; 
 every entry of this list is a tuple made of the intersection point and a normalized intersection parameter. 
 When there is an intersection, the new point is be pushed into the \texttt{V} matrix while the parameter 
@@ -123,8 +121,8 @@ a new \texttt{EV} is computed.
     V, EV
 end
 @}
-%--------------------------------%
-\subsubsection{Edge intersections}
+%+++++++++++++++++++++++++++++%
+\subsection{Edge intersections}
 \label{sec:intersect_edges}
 We used the method presented by Bourke\cite{bourke} to calculate
 the intersection of two edges. Particular attention is needed on the case of colinear edges: it can happen
@@ -186,7 +184,7 @@ end
 @}
 %+++++++++++++++++++++++++%
 \subsection{Implementation}
-When we need to fragment an \texttt{edge} we use the \texttt{frag\_edge} function (see \ref{sec:frag_edge}) 
+When we need to fragment an \texttt{edge} we use the \texttt{frag\_edge} function (ref. \ref{sec:frag_edge}) 
 and we simply update \texttt{V} and push the small \texttt{ev} matrix into a list of cells called \texttt{EVs}.
 We also keep the number of cells into \texttt{finalcells\_num} to build \texttt{EV} with ease.
 @D Fragment edge
@@ -316,7 +314,7 @@ EV = EV[tokeep, :]
 @}
 %+++++++++++++++++++++++++%
 \subsection{Implementation}
-We simply call \texttt{merge\_vertices} (see \ref{sec:merge_vertices}).
+We simply call \texttt{merge\_vertices} (ref. \ref{sec:merge_vertices}).
 @D Merge coincident vertices
 @{V, EV = merge_vertices(V, EV)
 @}
@@ -503,7 +501,7 @@ end
 %+++++++++++++++++++++++++%
 \subsection{Implementation}
 Like for the vertices merge we simply call the freshly implemented \texttt{biconnected\_components} function
-(see \ref{sec:biconnected_components}).
+(ref. \ref{sec:biconnected_components}).
 @D Find maximal biconnected components
 @{bicon_comps = biconnected_components(EV)
 @}
@@ -543,7 +541,7 @@ V = V[tokeep, :]
 
 bc = biconnected_components(EV)
 bc = Set(map(Set, bc))
-@@testset "biconnected_components test" begin
+
     @@test bc == Set([Set([1,2,3,4]), Set([5,6,7,8])])
 end
 @}
@@ -551,17 +549,40 @@ end
 
 
 
+
+
+
+
+
+
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%
 \section{Faces creation}
 %+++++++++++++++++++++++++++%
-\subsection{Support function}
-\label{sec:create_faces}
+\subsection{Implementation}
+@D Create faces
+@{n = size(bicon_comps)
+shells = Array{Cells, 1}(n)
+boundaries = Array{Cells, 1}(n)
+for p in 1:n
+    ev = EV[bicon_comps[p], :]
+    fe = minimal_2cycles(V, ev)
+    shell_num = get_external_cycle(V, ev, fe)
+    shells[p] = fe[shell_num, :]
+    tokeep = setdiff(1:fe.n, shell_num)
+    boundaries[p] = fe[tokeep, :]
+end
+@}
 
-As last step, we need to compute the boundary of the 2-faces.
-To do that we define the \texttt{create\_faces}.
+
+%+++++++++++++++++++++++++++%
+\subsection{Minimal 2-cycles}
+\label{sec:minimal_2cycles}
 
 @D Planar arrangement support functions
-@{function create_faces(V::Verts, EV::Cells)
+@{function minimal_2cycles(V::Verts, EV::Cells)
     edgenum, vertsnum = size(EV)
     edge_markers = zeros(Int8, edgenum)
     edge_angles = Array{Array{Int64, 1}, 1}(vertsnum)
@@ -651,17 +672,45 @@ an edge index (\texttt{e}) as input.
 end
 @}
 
-%++++++++++++++++%
-\subsection{Implementation}
-Back in the \texttt{planar\_arrangement} function, we simply store the signed boundary matrix.
-@D Create faces
-@{FE = create_faces(V, EV)
+%+++++++++++++++++++++++++%
+\subsection{Individuate the external cell}
+Once we computed the minimal 2-cycles (ref. \ref{sec:minimal_2cycles})
+we need to individuate the external cycle. To do this we iterate over the
+vertices of the passed \texttt{EV} to find four vertices: the two with biggest
+$x_1$ and $x_2$ coordinates (\texttt{maxv\_x1} and \texttt{maxv\_x2}) and the 
+two with the smallest one (\texttt{minv\_x1} and \texttt{minv\_x2}). 
+Then we check which face the two vertices have in common.
+
+@D Planar arrangement support functions
+@{function get_external_cycle(V::Verts, EV::Cells, FE::Cells)
+    FV = abs(FE)*EV
+    vs = sparsevec(mapslices(sum, EV, 1)).nzind
+    minv_x1 = maxv_x1 = minv_x2 = maxv_x2 = pop!(vs)
+    for i in vs
+        if V[i, 1] > V[maxv_x1, 1]
+            maxv_x1 = i
+        elseif V[i, 1] < V[minv_x1, 1]
+            minv_x1 = i
+        end
+        if V[i, 2] > V[maxv_x2, 2]
+            maxv_x2 = i
+        elseif V[i, 2] < V[minv_x2, 2]
+            minv_x2 = i
+        end
+    end
+    intersect(
+        FV[:, minv_x1].nzind, 
+        FV[:, maxv_x1].nzind,
+        FV[:, minv_x2].nzind,
+        FV[:, maxv_x2].nzind
+    )[1]
+end
 @}
 
 %++++++++++++++++%
 \subsection{Tests}
 @D Planar arrangement support functions tests
-@{@@testset "create_faces test" begin
+@{@@testset "minimal_2cycles test" begin
     V = [0 0; 1 1; -1 1; -1 -1; 1 -1.]
     EV = sparse(Array{Int8, 2}([
         [1 1 0 0 0]
