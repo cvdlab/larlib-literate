@@ -1,0 +1,68 @@
+\documentclass[10pt]{book}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\hypersetup{colorlinks = true}
+
+\author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
+\title{Linear Algebraic Representation}
+
+\begin{document}
+
+\frontmatter
+\maketitle
+\tableofcontents
+
+
+
+
+
+\mainmatter
+
+\chapter{Minimal cycles computation}
+\label{ch:minimal_cycles}
+
+@O lib/jl/minimal_cycles.jl
+@{function minimal_cycles(V::Verts, bounds::Cells)
+    vertsnum, ld_cellsnum = size(bounds)
+    markers = zeros(Int8, n)
+
+    @< minimal\_cycles local variables @>
+    @< minimal\_cycles utilities @>
+
+    while (sigma = get_seed_cell()) > 0
+        @< Compute a cycle @>
+    end
+end
+@}
+
+
+@D minimal\_cycles utilities
+@{function get_seed_cell()
+    s = -1
+    for i in 1:n
+        if markers[i] == 0
+            return i
+        elseif markers[i] == 1 && s < 0
+            s = i
+        end
+    end
+    return s
+end
+@}
+
+@D Compute a cycle
+@{if markers[sigma] == 0
+
+else
+end
+@}
+
+
+\backmatter
+
+
+\bibliography{book}{}
+\bibliographystyle{plain}
+\end{document}

@@ -30,10 +30,10 @@ When the fragmentation is done, coincident vertices are merged into one and usel
 2-cells are build and the result is returned.
 @O lib/jl/planar_arrangement.jl
 @{@< Imports and aliases @>
-@< Planar arrangement support functions @>
+@< planar\_arrangement support functions @>
 
 function planar_arrangement(V::Verts, EVsigma::Cells, EVints::Cells)
-    @< Local variables @>
+    @< planar\_arrangement local variables @>
     EV = [EVsigma; EVints]
     edgenum = size(EV, 1)
     for i in 1:edgenum
@@ -62,7 +62,7 @@ We start by defining a test case.
 @{using Base.Test
 include("../../lib/jl/planar_arrangement.jl")
 
-@< Planar arrangement support functions tests @>
+@< planar\_arrangement support functions tests @>
 @< General tests @>
 @}
 
@@ -92,7 +92,7 @@ When there is an intersection, the new point is be pushed into the \texttt{V} ma
 is stored into the \texttt{alphas} dictionary as a key coupled to the new point index.
 When every possible intersection is found, the keys in \texttt{alphas} are sorted and, on the base of that,
 a new \texttt{EV} is computed.
-@D Planar arrangement support functions
+@D planar\_arrangement support functions
 @{function frag_edge(V::Verts, EV::Cells, edgenum::Int)
     alphas = Dict{Float64, Int}()
     edge = EV[edgenum, :]
@@ -131,7 +131,7 @@ that \texttt{edge2} is contained into the bounds of the colinear \texttt{edge1};
 the intersections are returned as a list than can contain from zero to two elements; 
 each element is a couple \texttt{\{Verts, Float64\}} which represent the intersection
 point and a parameter that is useful for sorting the fragmentation points of an edge.
-@D Planar arrangement support functions
+@D planar\_arrangement support functions
 @{function intersect_edges(V::Verts, edge1::Cell, edge2::Cell)
     x1, y1, x2, y2 = vcat(map(c->V[c, :], edge1.nzind)...)
     x3, y3, x4, y4 = vcat(map(c->V[c, :], edge2.nzind)...)
@@ -193,7 +193,7 @@ finalcells_num += size(ev, 1)
 push!(EVs, ev)
 @}
 We declare \texttt{EVs} and \texttt{finalcells\_num} as local variables of \texttt{planar\_arrangement}.
-@D Local variables
+@D planar\_arrangement local variables
 @{EVs = Array{Cells, 1}()
 finalcells_num = 0
 @}
@@ -212,7 +212,7 @@ end
 @}
 %++++++++++++++++%
 \subsection{Tests}
-@D Planar arrangement support functions tests
+@D planar\_arrangement support functions tests
 @{@@testset "intersect_edges test set" begin
     V = [0 0; 2 0; 1 1.5; -1 1; 3 1; -1 0; 3 0]
     EVsigma = sparse(Array{Int8, 2}([
@@ -260,6 +260,9 @@ end
 
 
 
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Coincident vertices merge}
 %++++++++++++++++++++++++++++%
@@ -271,7 +274,7 @@ which provides a reliable implementation of the \texttt{KDTree} data structure.
 @D Imports and aliases
 @{using NearestNeighbors
 @}
-@D Planar arrangement support functions
+@D planar\_arrangement support functions
 @{function merge_vertices(V::Verts, EV::Cells, err=1e-10)
     kdtree = KDTree(V')
     tocheck = collect(size(V,1):-1:1)
@@ -331,7 +334,7 @@ We simply call \texttt{merge\_vertices} (ref. \ref{sec:merge_vertices}).
 @}
 %++++++++++++++++%
 \subsection{Tests}
-@D Planar arrangement support functions tests
+@D planar\_arrangement support functions tests
 @{@@testset "merge_vertices test set" begin
     n0 = 1e-12
     n1l = 1-1e-12
@@ -375,6 +378,10 @@ end
 
 
 
+
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Maximal biconnected components}
 %+++++++++++++++++++++++++++%
@@ -382,9 +389,9 @@ end
 \label{sec:biconnected_components}
 To individuate the maximal biconnected components of the fragmented and merged 1-skeleton
 we use the well know 1973 Hopcroft-Tarjan algorithm for biconnected components\cite{Hopcroft-Tarjan}.
-@D Planar arrangement support functions
+@D planar\_arrangement support functions
 @{function biconnected_components(EV::Cells)
-    @< Declare local variables @>
+    @< biconnected\_components local variables @>
     @< DFS utilities @>
     @< Depth first visit @>
     bicon_comps
@@ -397,7 +404,7 @@ the index assigned by the algorithm and the component identifier also assigned b
 contains couples with the index of the edge inside \texttt{EV} and the assigned index of the tail node. The indexes 
 in \texttt{todel} and \texttt{bicon\_comps} are relative to \texttt{EV} while the ones of \texttt{visited} are
 relative to \texttt{V}
-@D Declare local variables
+@D biconnected\_components local variables
 @{ps = Array{Tuple{Int, Int, Int}, 1}()
 es = Array{Tuple{Int, Int}, 1}()
 todel = Array{Int, 1}()
@@ -534,7 +541,7 @@ V = V[tokeep, :]
 @}
 %++++++++++++++++%
 \subsection{Tests}
-@D Planar arrangement support functions tests
+@D planar\_arrangement support functions tests
 @{@@testset "biconnected_components test set" begin
     EV = sparse(Array{Int8, 2}([
         [1 0 0 0 0 0 1 0 0 0 0 0]   #1
@@ -581,7 +588,7 @@ boundaries = Array{Cells, 1}(n)
 EVs = Array{Cells, 1}(n)
 for p in 1:n
     ev = EV[bicon_comps[p], :]
-    fe = minimal_2cycles(V, ev)
+    fe = minimal_cycles(V, ev)
     shell_num = get_external_cycle(V, ev, fe)
 
     EVs[p] = ev 
@@ -591,151 +598,16 @@ for p in 1:n
 end
 @}
 
-
-%+++++++++++++++++++++++++++%
-\subsection{Minimal 2-cycles}
-\label{sec:minimal_2cycles}
-Computing the minimal 2-cycles is not trivial. The \texttt{minimal\_2cycles} 
-function has this responsibility. To get every cycle, we must visit every edge 
-exactly twice, once from the vertex with the lower index to the other and once 
-in the opposite direction; to perform this check we store an array
-of integers called \texttt{edge\_markers}. We use these markers
-to determine if there are edges visited less than twice (this means there is
-at least one more cycle to individuate) and eventually choose a new starting edge
-but, most importantly, we use them to choose the next edge to add to a cycle while
-building it. Said so, it appears clear that the function must iterate until 
-every cycle is found (or until every edge is marked twice):
-@D Planar arrangement support functions
-@{function minimal_2cycles(V::Verts, EV::Cells)
-    edgenum, vertsnum = size(EV)
-    edge_markers = zeros(Int8, edgenum)
-    @< minimal\_2cycles local variables @>
-    @< minimal\_2cycles utilities @>
-
-    @< Compute edge angles @>
-
-    while (e = get_starting_edge()) > 0
-        @< Compute a cycle @>
-    end
-
-    sparse(FE)
-end
-@}
-
-The \texttt{get\_starting\_edge} function returns the first edge
-marked with zero. If there are no edges marked with zero, the first edge
-marked with one will be returned. If every edge is marked with 2 then $-1$
-will be returned.
-
-@D minimal\_2cycles utilities
-@{function get_starting_edge()
-    e = -1
-    for i in 1:edgenum
-        if edge_markers[i] == 0
-            return i
-        elseif edge_markers[i] == 1 && e < 0
-            e = i
-        end
-    end
-    e
-end
-@}
-
-The result of this computation is stored in the \texttt{FE} signed matrix.
-It associates the cycles to the edges that make them up. Since the
-cycles are oriented, the possible values that populate this matrix are $\in\{0,+1,-1\}$.
-A $+1$ in position $(i_1,j)$ of \texttt{FE} means that, in the cycle $i_1$, the edge of index $j$
-is traversed from the vertex of lowest index to the one of biggest index. Due to the rule
-mentioned above, in the same example \texttt{FE} matrix, there is for sure a $-1$ value in position
-$(i_2,j)$. This means that the $j$ edge is also traversed in the cycle $i_2$, but in the opposite
-direction.
-
-@D minimal\_2cycles local variables
-@{FE = zeros(Int8, 0, edgenum)
-@}
-
-Now we need to focus on computing the single cycles.
-The procedure is easy:
-
-@D Compute a cycle
-@{face = zeros(Int8, edgenum)
-if edge_markers[e] == 0
-    startv, oldv = EV[e, :].nzind
-else
-    oldv, startv = EV[e, :].nzind
-end
-v = -1
-edge_markers[e] += 1
-face[e] = sign(oldv - startv)
-while v != startv
-    e = next_edge(oldv, e)
-    v = setdiff(EV[e, :].nzind, [oldv])[1]
-    face[e] = sign(v - oldv)
-    oldv = v
-    edge_markers[e] += 1
-end
-FE = [FE; reshape(face, 1, edgenum)]
-@}
-
-Everything revolves around the logic behind the choice
-of the next edge to traverse. When the procedure reaches a
-vertex \texttt{v} from the edge \texttt{e}, the next edge to traverse
-is the first one encountered by travelling counterclockwise around \texttt{v}
-starting from \texttt{e} that has not been marked twice yet.
-To make this computation easier, at the beginning of the \texttt{minimal\_2cycles} 
-function, we define a function to compute the angle 
-between an edge and the $x_1$-axis and we apply it to every edge out of every vertex.
-The angles relative to a single vertex are then sorted in counterclockwise order and
-stored into the \texttt{edge\_angles} array.
-
-@D minimal\_2cycles local variables
-@{edge_angles = Array{Array{Int64, 1}, 1}(vertsnum)
-@}
-
-@D minimal\_2cycles utilities
-@{function edge_angle(v::Int, edge::Cell)
-    v2 = setdiff(edge.nzind, [v])[1]
-    x, y = V[v2, :] - V[v, :]
-    return atan2(y, x)
-end
-
-for v in 1:vertsnum
-    as = [(e, edge_angle(v, EV[e, :])) for e in EV[:, v].nzind]
-    sort!(as, lt=(a,b)->a[2]<b[2])
-    as = map(a->a[1], as)
-    edge_angles[v] = as
-end
-@}
-
-The \texttt{next\_edge} function is the direct translation of what is said above.
-
-@D minimal\_2cycles utilities
-@{function next_edge(v::Int64, e::Int64)
-    angles = edge_angles[v]
-    ne = findfirst(angles, e)
-    while true
-        ne += 1
-        if ne > length(angles)
-            ne = 1
-        end
-        if edge_markers[angles[ne]] < 2
-            break
-        end
-    end
-    angles[ne]
-end
-@}
-
 %+++++++++++++++++++++++++%
 \subsection{Individuate the external cell}
-Once we computed the minimal 2-cycles (ref. \ref{sec:minimal_2cycles})
+Once we computed the minimal 2-cycles (ref. \ref{ch:minimal_cycles})
 we need to individuate the external cycle. To do this we iterate over the
 vertices of the passed \texttt{EV} to find four vertices: the two with biggest
 $x_1$ and $x_2$ coordinates (\texttt{maxv\_x1} and \texttt{maxv\_x2}) and the 
 two with the smallest one (\texttt{minv\_x1} and \texttt{minv\_x2}). 
 Then we check which face the two vertices have in common.
 
-@D Planar arrangement support functions
+@D planar\_arrangement support functions
 @{function get_external_cycle(V::Verts, EV::Cells, FE::Cells)
     FV = abs(FE)*EV
     vs = sparsevec(mapslices(sum, EV, 1)).nzind
@@ -763,7 +635,7 @@ end
 
 %++++++++++++++++%
 \subsection{Tests}
-@D Planar arrangement support functions tests
+@D planar\_arrangement support functions tests
 @{@@testset "minimal_2cycles test set" begin
     V = [0 0; 1 1; -1 1; -1 -1; 1 -1.]
     EV = sparse(Array{Int8, 2}([
