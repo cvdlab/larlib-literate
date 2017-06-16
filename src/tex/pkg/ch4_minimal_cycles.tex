@@ -23,10 +23,18 @@
 \chapter{Minimal cycles computation}
 \label{ch:minimal_cycles}
 
+\textbf{Notes on variables names:} \texttt{ld} stands for \textit{lower dimension} 
+and \texttt{lld} for \textit{lower lower dimension}. So, \texttt{ld\_cellsnum} is the
+short form of \textit{lower dimension cell number}.
+
 @O lib/jl/minimal_cycles.jl
-@{function minimal_cycles(V::Verts, bounds::Cells)
-    vertsnum, ld_cellsnum = size(bounds)
-    markers = zeros(Int8, n)
+@{typealias Verts Array{Float64, 2}
+typealias Cells SparseMatrixCSC{Int8, Int}
+typealias Cell SparseVector{Int8, Int}
+
+function minimal_cycles(V::Verts, ld_bounds::Cells)
+    lld_cellsnum, ld_cellsnum = size(ld_bounds)
+    markers = zeros(Int8, ld_cellsnum)
 
     @< minimal\_cycles local variables @>
     @< minimal\_cycles utilities @>
@@ -34,14 +42,19 @@
     while (sigma = get_seed_cell()) > 0
         @< Compute a cycle @>
     end
+
+    return bounds
 end
 @}
 
+@D minimal\_cycles local variables
+@{bounds = zeros(Int8, ld_cellsnum, 0)
+@}
 
 @D minimal\_cycles utilities
 @{function get_seed_cell()
     s = -1
-    for i in 1:n
+    for i in 1:ld_cellsnum
         if markers[i] == 0
             return i
         elseif markers[i] == 1 && s < 0
@@ -52,13 +65,75 @@ end
 end
 @}
 
-@D Compute a cycle
-@{if markers[sigma] == 0
 
+@D Compute a cycle
+@{c_ld = spzeros(Int64, ld_cellsnum)
+if markers[sigma] == 0
+    c_ld[sigma] = 1
 else
+    c_ld[sigma] = -1
+end
+c_lld = ld_bounds*c_ld
+while c_lld.nzind != []
+    corolla = spzeros(Int64, ld_cellsnum)
+    for tau in c_lld.nzind
+        b_ld = ld_bounds[tau, :]
+        pivot = intersect(c_ld.nzind, b_ld.nzind)[1]
+        adj = nextprev(tau, pivot, -c_lld[tau])
+        corolla[adj] = c_ld[pivot]
+        if b_ld[adj] == b_ld[pivot]
+            corolla[adj] *= -1
+        end
+    end
+    c_ld += corolla
+    c_lld = ld_bounds*c_ld
+end
+map(s->markers[s] += 1, c_ld.nzind)
+bounds = [bounds c_ld]
+@}
+
+
+
+@D minimal\_cycles local variables
+@{angles = Array{Array{Int64, 1}, 1}(lld_cellsnum)
+@}
+
+@D minimal\_cycles utilities
+@{function edge_angle(v::Int, edge::Cell)
+    v2 = setdiff(edge.nzind, [v])[1]
+    x, y = V[v2, :] - V[v, :]
+    return atan2(y, x)
+end
+
+for v in 1:lld_cellsnum
+    as = [(e, edge_angle(v, ld_bounds[:, e])) for e in ld_bounds[v, :].nzind]
+    sort!(as, lt=(a,b)->a[2]<b[2])
+    as = map(a->a[1], as)
+    angles[v] = as
 end
 @}
 
+The \texttt{next\_edge} function is the direct translation of what is said above.
+
+@D minimal\_cycles utilities
+@{function nextprev(v::Int64, e::Int64, norp)
+    as = angles[v]
+    ne = findfirst(as, e)
+    while true
+        ne += norp
+        if ne > length(as)
+            ne = 1
+        elseif ne < 1
+            ne = length(as)
+        end
+
+        if markers[as[ne]] < 2
+            break
+        end
+    end
+    as[ne]
+end
+@}
 
 \backmatter
 
