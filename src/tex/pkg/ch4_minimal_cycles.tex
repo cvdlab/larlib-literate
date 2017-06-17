@@ -23,33 +23,62 @@
 \chapter{Minimal cycles computation}
 \label{ch:minimal_cycles}
 
-\textbf{Notes on variables names:} \texttt{ld} stands for \textit{lower dimension} 
-and \texttt{lld} for \textit{lower lower dimension}. So, \texttt{ld\_cellsnum} is the
-short form of \textit{lower dimension cell number}.
+\section{Main function}
+
+
+Computing the minimal cycles means to compute the $d$-boundary matrix
+from the $(d-1)$-boundary. This function works for both $d=2$ and $d=3$;
+the only difference between the two cases lays in the \texttt{angles\_fn}
+function (ref. \ref{sec:angles_fn}). To support this multidimensional
+behavior, the algorithm has been implemented as an high-order function\footnote{
+    \textbf{Notes on variables names:} \texttt{ld} stands for \textit{lower dimension} ($d-1$)
+    and \texttt{lld} for \textit{lower lower dimension} ($d-2$). So, \texttt{ld\_cellsnum} is the
+    short form of \textit{lower dimension cell number}. For example, if $d=2$, \texttt{ld\_cellsnum} stands for the
+    number of $1-$cells, aka the edges.
+}:
 
 @O lib/jl/minimal_cycles.jl
 @{typealias Verts Array{Float64, 2}
 typealias Cells SparseMatrixCSC{Int8, Int}
 typealias Cell SparseVector{Int8, Int}
 
-function minimal_cycles(V::Verts, ld_bounds::Cells)
-    lld_cellsnum, ld_cellsnum = size(ld_bounds)
-    markers = zeros(Int8, ld_cellsnum)
+@< Angles functions @>
 
-    @< minimal\_cycles local variables @>
-    @< minimal\_cycles utilities @>
+function minimal_cycles(angles_fn::Function)
 
-    while (sigma = get_seed_cell()) > 0
-        @< Compute a cycle @>
+    function _minimal_cycles(V::Verts, ld_bounds::Cells)
+        @< Function body @>
     end
 
-    return bounds
+    return _minimal_cycles
 end
 @}
 
-@D minimal\_cycles local variables
-@{bounds = zeros(Int8, ld_cellsnum, 0)
+In the internal function we store an array of integers called \texttt{markers} 
+that increments every time a cells is visited. We do that because to build 
+a complete $d$-boundary, we must visit every $(d-1)$-cell exactly twice;
+Said so, it appears clear that the algorithm must iterate until a $(d-1)$-cell 
+marked with 0 or 1 can be found:
+
+@D Function body
+@{lld_cellsnum, ld_cellsnum = size(ld_bounds)
+markers = zeros(Int8, ld_cellsnum)
+d_bounds = spzeros(Int8, ld_cellsnum, 0)
+
+@< minimal\_cycles local variables @>
+@< minimal\_cycles utilities @>
+
+while (sigma = get_seed_cell()) > 0
+    @< Compute a cycle @>
+end
+
+return d_bounds
 @}
+
+The \texttt{get\_seed\_cell} function returns the first $d-1$ cell
+marked with zero. If there are no cells marked with zero, the first cell
+marked with one will be returned. If every cell is marked with 2 then $-1$
+will be returned.
 
 @D minimal\_cycles utilities
 @{function get_seed_cell()
@@ -65,6 +94,11 @@ end
 end
 @}
 
+The bigger part of the algorithm is the computation
+of a single cycle. It is perfectly equivalent to the
+\textbf{ALGORITHM 1} presented by A. Paoluzzi et al.
+in \textit{Arrangements of cellular complexes}
+\cite{Paoluzzi}
 
 @D Compute a cycle
 @{c_ld = spzeros(Int64, ld_cellsnum)
@@ -89,36 +123,28 @@ while c_lld.nzind != []
     c_lld = ld_bounds*c_ld
 end
 map(s->markers[s] += 1, c_ld.nzind)
-bounds = [bounds c_ld]
+d_bounds = [d_bounds c_ld]
 @}
-
-
 
 @D minimal\_cycles local variables
 @{angles = Array{Array{Int64, 1}, 1}(lld_cellsnum)
 @}
 
 @D minimal\_cycles utilities
-@{function edge_angle(v::Int, edge::Cell)
-    v2 = setdiff(edge.nzind, [v])[1]
-    x, y = V[v2, :] - V[v, :]
-    return atan2(y, x)
-end
-
-for v in 1:lld_cellsnum
-    as = [(e, edge_angle(v, ld_bounds[:, e])) for e in ld_bounds[v, :].nzind]
+@{
+for lld in 1:lld_cellsnum
+    as = [(ld, angles_fn(V, lld, ld_bounds[:, ld])) 
+        for ld in ld_bounds[lld, :].nzind]
     sort!(as, lt=(a,b)->a[2]<b[2])
     as = map(a->a[1], as)
-    angles[v] = as
+    angles[lld] = as
 end
 @}
 
-The \texttt{next\_edge} function is the direct translation of what is said above.
-
 @D minimal\_cycles utilities
-@{function nextprev(v::Int64, e::Int64, norp)
-    as = angles[v]
-    ne = findfirst(as, e)
+@{function nextprev(ldd::Int64, ld::Int64, norp)
+    as = angles[ldd]
+    ne = findfirst(as, ld)
     while true
         ne += norp
         if ne > length(as)
@@ -134,6 +160,26 @@ The \texttt{next\_edge} function is the direct translation of what is said above
     as[ne]
 end
 @}
+
+
+
+\section{Angles functions}
+\label{sec:angles_fn}
+
+\subsection{$d=2$}
+
+@D Angles functions
+@{function edge_angle(V::Verts, v::Int, edge::Cell)
+    v2 = setdiff(edge.nzind, [v])[1]
+    x, y = V[v2, :] - V[v, :]
+    return atan2(y, x)
+end
+@}
+
+\subsection{$d=3$}
+
+TODO
+
 
 \backmatter
 
