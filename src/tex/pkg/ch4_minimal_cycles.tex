@@ -95,7 +95,7 @@ end
 @}
 
 The bigger part of the algorithm is the computation
-of a single cycle. It is perfectly equivalent to the
+of a single cycle. It is mostly equivalent to the
 \textbf{ALGORITHM 1} presented by A. Paoluzzi et al.
 in \textit{Arrangements of cellular complexes}
 \cite{Paoluzzi}
@@ -126,9 +126,19 @@ map(s->markers[s] += 1, c_ld.nzind)
 d_bounds = [d_bounds c_ld]
 @}
 
+As profusely explained by A. Paoluzzi et al. \cite{Paoluzzi}, this algorithm
+revolves around the \textit{next} and \textit{prev} functions. To speed up their
+computation, before the cycles iteration starts, we calculate and
+store for each ($d-2$)-cell the angles that its incident ($d-1$)-cells
+form with it.
+
 @D minimal\_cycles local variables
 @{angles = Array{Array{Int64, 1}, 1}(lld_cellsnum)
 @}
+
+Here we use the parameter \texttt{angles\_fn::Function}. As explained earlier,
+this function is the only difference between the $d=3$ and $d=2$ version of
+\texttt{minimal\_cycles}.
 
 @D minimal\_cycles utilities
 @{
@@ -140,6 +150,11 @@ for lld in 1:lld_cellsnum
     angles[lld] = as
 end
 @}
+
+Once computed the \texttt{angles}, the \texttt{nextprev} function is
+easy to implement. The \texttt{norp} parameter is a short form for \textit{next or prev}. 
+It determines if the function should choose the first available
+($d-1$)-cell rotating clockwise or counterclockwise around the ($d-2$)-cell.
 
 @D minimal\_cycles utilities
 @{function nextprev(ldd::Int64, ld::Int64, norp)
@@ -167,6 +182,10 @@ end
 \label{sec:angles_fn}
 
 \subsection{$d=2$}
+
+When in $d=2$, we have a vertex as ($d-2$)-cell and an edge as ($d-1$)-cell.
+This function uses the Julia's \texttt{atan2} built-in function to calculate
+the angle of the edge from the vertex point of view.
 
 @D Angles functions
 @{function edge_angle(V::Verts, v::Int, edge::Cell)
