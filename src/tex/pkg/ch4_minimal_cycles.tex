@@ -42,7 +42,7 @@ behavior, the algorithm has been implemented as an high-order function\footnote{
 typealias Cells SparseMatrixCSC{Int8, Int}
 typealias Cell SparseVector{Int8, Int}
 
-@< Angles functions @>
+@< Minimal cycles implementations @>
 
 function minimal_cycles(angles_fn::Function)
 
@@ -178,20 +178,33 @@ end
 
 
 
-\section{Angles functions}
+\section{Dimensional wise implementations}
 \label{sec:angles_fn}
 
 \subsection{$d=2$}
 
-When in $d=2$, we have a vertex as ($d-2$)-cell and an edge as ($d-1$)-cell.
-This function uses the Julia's \texttt{atan2} built-in function to calculate
-the angle of the edge from the vertex point of view.
+When in $d=2$, ($d-2$)-cells are vertices and ($d-1$)-cells are edges.
+The \texttt{edge\_angle} function uses the Julia's \texttt{atan2} 
+built-in function to calculate the angle of the edge from the vertex point of view.
 
-@D Angles functions
-@{function edge_angle(V::Verts, v::Int, edge::Cell)
-    v2 = setdiff(edge.nzind, [v])[1]
-    x, y = V[v2, :] - V[v, :]
-    return atan2(y, x)
+@D Minimal cycles implementations
+@{function minimal_2cycles(V::Verts, ev::Cells)
+
+    function edge_angle(V::Verts, v::Int, edge::Cell)
+        v2 = setdiff(edge.nzind, [v])[1]
+        x, y = V[v2, :] - V[v, :]
+        return atan2(y, x)
+    end
+
+    for i in 1:ev.m
+        j = ev[i,:].nzind[1]
+        ev[i, j] = -1
+    end
+    VE = ev'
+
+    EF = minimal_cycles(edge_angle)(V, VE)
+
+    return EF'
 end
 @}
 

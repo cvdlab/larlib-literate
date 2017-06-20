@@ -29,7 +29,7 @@ It puts \texttt{EVsigma} and \texttt{EVints} together into \texttt{EV} and then 
 When the fragmentation is done, coincident vertices are merged into one and useless edges are deleted. At last,
 2-cells are build and the result is returned.
 @O lib/jl/planar_arrangement.jl
-@{@< Imports and aliases @>
+@{@< planar\_arrangement imports and aliases @>
 @< planar\_arrangement support functions @>
 
 function planar_arrangement(V::Verts, EVsigma::Cells, EVints::Cells)
@@ -49,7 +49,7 @@ function planar_arrangement(V::Verts, EVsigma::Cells, EVints::Cells)
 end 
 @}
 We define some aliases to standardize data formats.
-@D Imports and aliases
+@D planar\_arrangement imports and aliases
 @{typealias Verts Array{Float64, 2}
 typealias Cells SparseMatrixCSC{Int8, Int}
 typealias Cell SparseVector{Int8, Int}
@@ -271,7 +271,7 @@ end
 The merge of coincident is done in the \texttt{merge\_vertices}
 function. This relies on the \texttt{NearestNeighbors.jl} package\cite{NearestNeighbors}
 which provides a reliable implementation of the \texttt{KDTree} data structure.
-@D Imports and aliases
+@D planar\_arrangement imports and aliases
 @{using NearestNeighbors
 @}
 @D planar\_arrangement support functions
@@ -579,7 +579,7 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 \section{Faces creation}
-%+++++++++++++++++++++++++++%
+%+++++++++++++++++++++++++%
 \subsection{Implementation}
 @D Create faces
 @{n = size(bicon_comps, 1)
@@ -588,7 +588,7 @@ boundaries = Array{Cells, 1}(n)
 EVs = Array{Cells, 1}(n)
 for p in 1:n
     ev = EV[bicon_comps[p], :]
-    fe = minimal_cycles(V, ev)
+    fe = minimal_2cycles(V, ev)
     shell_num = get_external_cycle(V, ev, fe)
 
     EVs[p] = ev 
@@ -598,7 +598,11 @@ for p in 1:n
 end
 @}
 
-%+++++++++++++++++++++++++%
+@D planar\_arrangement imports and aliases
+@{include("./minimal_cycles.jl")
+@}
+
+%++++++++++++++++++++++++++++++++++++++++%
 \subsection{Individuate the external cell}
 Once we computed the minimal 2-cycles (ref. \ref{ch:minimal_cycles})
 we need to individuate the external cycle. To do this we iterate over the
