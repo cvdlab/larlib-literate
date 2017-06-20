@@ -596,6 +596,8 @@ for p in 1:n
     boundaries[p] = fe[tokeep, :]
     shells[p] = fe[[shell_num], :]
 end
+
+@< Transitive reduction @>
 @}
 
 @D planar\_arrangement imports and aliases
@@ -636,6 +638,28 @@ Then we check which face the two vertices have in common.
     )[1]
 end
 @}
+
+%+++++++++++++++++++++++++++++++%
+\subsection{Transitive reduction}
+
+We have an adjacency matrix and we must perform a transitive reduction.
+As explained by A. V. Aho, M. R. Garey, and J. D. Ullman \cite{parallel_transitive_reduction}
+we have:
+
+@D Transitive reduction
+@{for j in 1:n
+    for i in 1:n
+        if containment_graph[i, j] > 0
+            for k in 1:n
+                if containment_graph[j, k] > 0
+                    containment_graph[i, k] = 0
+                end
+            end
+        end
+    end
+end
+@}
+
 
 %++++++++++++++++%
 \subsection{Tests}
