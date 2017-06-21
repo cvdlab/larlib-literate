@@ -101,7 +101,7 @@ in \textit{Arrangements of cellular complexes}
 \cite{Paoluzzi}
 
 @D Compute a cycle
-@{c_ld = spzeros(Int64, ld_cellsnum)
+@{c_ld = spzeros(Int8, ld_cellsnum)
 if markers[sigma] == 0
     c_ld[sigma] = 1
 else
@@ -109,7 +109,7 @@ else
 end
 c_lld = ld_bounds*c_ld
 while c_lld.nzind != []
-    corolla = spzeros(Int64, ld_cellsnum)
+    corolla = spzeros(Int8, ld_cellsnum)
     for tau in c_lld.nzind
         b_ld = ld_bounds[tau, :]
         pivot = intersect(c_ld.nzind, b_ld.nzind)[1]
