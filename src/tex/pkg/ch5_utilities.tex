@@ -1,0 +1,62 @@
+\documentclass[10pt]{book}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\hypersetup{colorlinks = true}
+
+\author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
+\title{Linear Algebraic Representation}
+
+\begin{document}
+
+\frontmatter
+\maketitle
+\tableofcontents
+
+
+
+
+
+\mainmatter
+
+\chapter{Utilities}
+\label{ch:utilities}
+
+@O lib/jl/utilities.jl
+@{@< Aliases @>
+@< Utilities @>
+@}
+
+\section{Types}
+
+@D Aliases
+@{typealias Verts Array{Float64, 2}
+typealias Cells SparseMatrixCSC{Int8, Int}
+typealias Cell SparseVector{Int8, Int}
+@}
+
+\section{Bounding boxes}
+\label{sec:bboxes}
+
+@D Utilities
+@{function bbox(vertices::Verts)
+    minimum = mapslices(x->min(x...), vertices, 1)
+    maximum = mapslices(x->max(x...), vertices, 1)
+    minimum, maximum
+end
+
+function bbox_contains(container, contained)
+    b1_min, b1_max = container
+    b2_min, b2_max = contained
+    all(map((i,j,k,l)->i<=j<=k<=l, b1_min, b2_min, b2_max, b1_max))
+end
+@}
+
+
+\backmatter
+
+
+\bibliography{book}{}
+\bibliographystyle{plain}
+\end{document}

@@ -38,9 +38,7 @@ behavior, the algorithm has been implemented as an high-order function\footnote{
 }:
 
 @O lib/jl/minimal_cycles.jl
-@{typealias Verts Array{Float64, 2}
-typealias Cells SparseMatrixCSC{Int8, Int}
-typealias Cell SparseVector{Int8, Int}
+@{include("./utilities.jl")
 
 @< Minimal cycles implementations @>
 
