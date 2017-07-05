@@ -599,9 +599,8 @@ end
 
 @< Containment test @>
 @< Transitive reduction @>
-println(full(containment_graph))
-println(map(full, boundaries))
-println(map(full, EVs))
+@< Cell merging @>
+
 @}
 
 @D planar\_arrangement imports and aliases
@@ -620,7 +619,7 @@ Then we check which face the two vertices have in common.
 @D planar\_arrangement support functions
 @{function get_external_cycle(V::Verts, EV::Cells, FE::Cells)
     FV = abs(FE)*EV
-    vs = sparsevec(mapslices(sum, EV, 1)).nzind
+    vs = sparsevec(mapslices(sum, abs(EV), 1)).nzind
     minv_x1 = maxv_x1 = minv_x2 = maxv_x2 = pop!(vs)
     for i in vs
         if V[i, 1] > V[maxv_x1, 1]
@@ -758,6 +757,88 @@ we have:
 end
 @}
 
+%+++++++++++++++++++++++%
+\subsection{Cell merging}
+
+For every arc of the containment tree we have a father component 
+and a child component and we must find the cycle of the father that
+contains the child. This happens if the bounding box of the child is fully
+contained in the box of the cycle.
+The \texttt{sums} array contains the indexes of the rows of the various
+boundary matrices to sum after the containment graph has been traversed.
+@D Cell merging
+@{@< Cell merging support functions @>
+
+sums = Array{Tuple{Int, Int, Int}}(0);
+
+for father in 1:n
+    if sum(containment_graph[:, father]) > 0
+        father_bboxes = bboxes(V, abs(EVs[father]')*abs(boundaries[father]'))
+        for child in 1:n
+            if containment_graph[child, father] > 0
+                vs_indexes = (abs(EVs[child]')*abs(shells[child])).nzind
+                child_bbox = bbox(V[vs_indexes, :])
+                for b in 1:length(father_bboxes)
+                    if bbox_contains(father_bboxes[b], child_bbox)
+                        push!(sums, (father, b, child))
+                        break
+                    end
+                end
+            end            
+        end
+    end
+end
+
+
+EV = vcat(EVs...)
+edgenum = size(EV, 1)
+facenum = sum(map(x->size(x,1), boundaries))
+bounds = spzeros(Int8, facenum, edgenum)
+shells2 = spzeros(Int8, length(shells), edgenum)
+r_offset = 1
+c_offsets = [1]
+for i in 1:n
+    min_row = r_offset
+    max_row = r_offset + size(boundaries[i], 1) - 1
+    min_col = c_offsets[end]
+    max_col = c_offsets[end] + size(boundaries[i], 2) - 1
+    bounds[min_row:max_row, min_col:max_col] = boundaries[i]
+    shells2[i, min_col:max_col] = shells[i]
+    r_offset = max_row + 1
+    push!(c_offsets, max_col + 1)
+end
+
+for (f, r, c) in sums
+    bounds[c_offsets[f]+r-1, :] += shells2[c, :]
+end
+
+FE = bounds
+@}
+
+@D Cell merging support functions
+@{function bboxes(V::Verts, indexes::Cells)
+    boxes = Array{Tuple{Any, Any}}(indexes.n)
+    for i in 1:indexes.n
+        v_inds = indexes[:, i].nzind
+        boxes[i] = bbox(V[v_inds, :])
+    end
+    boxes
+end
+@}
+
+@D planar\_arrangement support functions
+@{function bbox(vertices::Verts)
+    minimum = mapslices(x->min(x...), vertices, 1)
+    maximum = mapslices(x->max(x...), vertices, 1)
+    minimum, maximum
+end
+
+function bbox_contains(container, contained)
+    b1_min, b1_max = container
+    b2_min, b2_max = contained
+    all(map((i,j,k,l)->i<=j<=k<=l, b1_min, b2_min, b2_max, b1_max))
+end
+@}
 
 
 
