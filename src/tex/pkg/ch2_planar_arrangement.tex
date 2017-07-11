@@ -672,7 +672,6 @@ for i in 1:n
 end
 
 containment_graph = containment_test(shell_bboxes)
-println(full(containment_graph))
 @}
 
 The function that actually computes the containment
@@ -741,8 +740,7 @@ for father in 1:n
         father_bboxes = bboxes(V, abs(EVs[father]')*abs(boundaries[father]'))
         for child in 1:n
             if containment_graph[child, father] > 0
-                vs_indexes = (abs(EVs[child]')*abs(shells[child])).nzind
-                child_bbox = bbox(V[vs_indexes, :])
+                child_bbox = shell_bboxes[child]
                 for b in 1:length(father_bboxes)
                     if bbox_contains(father_bboxes[b], child_bbox)
                         push!(sums, (father, b, child))
