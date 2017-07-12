@@ -111,7 +111,7 @@ while c_lld.nzind != []
     for tau in c_lld.nzind
         b_ld = ld_bounds[tau, :]
         pivot = intersect(c_ld.nzind, b_ld.nzind)[1]
-        adj = nextprev(tau, pivot, -c_lld[tau])
+        adj = nextprev(tau, pivot, sign(-c_lld[tau]))
         corolla[adj] = c_ld[pivot]
         if b_ld[adj] == b_ld[pivot]
             corolla[adj] *= -1

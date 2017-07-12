@@ -18,33 +18,13 @@
 
 \chapter{Introduction}
 
-\section{Testing nuweb}
-Now we are testing nuweb by doing a simple Julia script. Here the structure of the script:
 @O lib/jl/LARLIB.jl
-@{# This a test in Julia
-module LARLIB
-@< Do some calculations @>
-@< Print result @>
-end
-@< Functions @>
-@}
-
-Now some calculations:
-@D Do some calculations
-@{var = 7 * 6
-@}
-
-And print the result on standard output:
-@D Print result
-@{println("Result: ", var)
-@}
-
-@D Functions
 @{function lar2plasm(EV, FE)
     EV = sparse(EV)
     faces = Array{Array{Int64, 1}, 1}()
 
     for f in 1:size(FE, 1)
+
         verts = Array{Int64, 1}()
         done = Array{Int64, 1}()
         face = FE[f, :]
@@ -59,7 +39,7 @@ And print the result on standard output:
         push!(verts, startv)
 
         while nextv != startv
-            println(edges[:, nextv].nzind, "; done: ", done)
+            
             e = setdiff(edges[:, nextv].nzind, done)[1]
             push!(done, e)
             vs = edges[e, :].nzind
@@ -91,7 +71,7 @@ function lar2py(V, EV)
     println("]")
 end
 
-function generate(nv)
+function generate_cube_lines(nv)
     ne = Int(floor(nv/2))
     
     V = Array{Float64, 2}(nv, 2)
@@ -112,13 +92,26 @@ function generate(nv)
         EVints[i, 2*i-1:2*i] = 1
     end
     
-    lar2py(V,EVints)
-    
-    println("######################")
-    V, EV, FE = planar_arrangement(V, EVsigma, EVints)
-    
-    lar2py(V, EV)
-    lar2plasm(EV, FE)
+    V, EVsigma, EVints
+end
+
+
+function generate_short_lines(n)
+    origins = rand(n, 2)
+    directions = mapslices(normalize, rand(n, 2), 2)
+    alphas = .2*rand(n)+.1
+    new_points = Array{Float64, 2}(n, 2)
+    for i in 1:n
+        new_points[i, :] = origins[i, :] + alphas[i]*directions[i, :]
+    end
+    V = [origins; new_points]
+    EVsigma = spzeros(Int8, n, n*2)
+    for i in 1:n
+        EVsigma[i, i] = 1
+        EVsigma[i, n+i] = 1
+    end
+    EVints = spzeros(Int8, 0, n*2)
+    V, EVsigma, EVints
 end
 @}
 

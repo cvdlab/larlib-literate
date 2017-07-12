@@ -520,21 +520,11 @@ Like for the vertices merge we simply call the freshly implemented \texttt{bicon
 @D Find maximal biconnected components
 @{bicon_comps = biconnected_components(EV)
 @}
-We also need to delete edges that are not part of a maximal biconnected component.
-Once we deleted the edges, we must update \texttt{bicon\_comps} with the indices of edges
-after the delete operation.
-We also need to check if there are isolated vertices and then
-delete them from both \texttt{V} and \texttt{EV}.
+We also need to delete edges that are not part of a maximal biconnected component
+and then to delete the isolated vertices from both \texttt{V} and \texttt{EV}.
 @D Filter biconnected components
 @{todel = setdiff(collect(1:size(EV,1)), union(bicon_comps...))
 EV = EV[union(bicon_comps...), :]
-subs = 0
-for i in todel
-    subs = subs + map(x->map(y->y>i ? 1 : 0,x), bicon_comps)
-end
-if subs != 0
-    bicon_comps = map((-), bicon_comps, subs)
-end
 
 vertinds = 1:size(EV, 2)
 todel = Array{Int64, 1}()
@@ -590,7 +580,9 @@ end
 %+++++++++++++++++++++++++%
 \subsection{Implementation}
 @D Create faces
-@{n = size(bicon_comps, 1)
+@{bicon_comps = biconnected_components(EV)
+
+n = size(bicon_comps, 1)
 shells = Array{Cell, 1}(n)
 boundaries = Array{Cells, 1}(n)
 EVs = Array{Cells, 1}(n)
@@ -827,15 +819,14 @@ Here we present some general tests for the \texttt{planar\_arrangement} function
     V, EV, FE = planar_arrangement(V, EVsigma, EVints)
     err = 1e-5
     @@test all(map((a,b)->-err<a-b<+err, V, [
-        [0.0 0.0]
-        [2.0 0.0]
-        [1.0 1.5]
-        [1.33333 1.0]
-        [0.666667 1.0]
+        [0.0       0.0]
+        [2.0       0.0]
+        [1.0       1.5]
+        [1.33333   1.0]
+        [0.666667  1.0]
     ]))
-    
-    @@test EV == [0 0 -1 0 1; -1 0 0 0 1; 0 0 0 -1 1; -1 1 0 0 0; 0 0 -1 1 0; 0 -1 0 1 0]
-    @@test FE == [1 0 -1 0 -1 0; 0 -1 1 1 0 1]
+    @@test EV == [-1 0 0 0 1; 0 0 -1 1 0; 0 0 -1 0 1; 0 0 0 -1 1; 0 -1 0 1 0; -1 1 0 0 0]
+    @@test FE == [-1 0 0 1 1 1; 0 -1 1 -1 0 0]
 end
 @}
 
@@ -876,28 +867,28 @@ end
         [0 0; 1 0; 1 1; 0 1; .5 0; .75 0; 1 .5; 1 .25; 0 .5; .5 .5; .5 .25; .75 .25]))
     @@test EV == [
         [-1 0 0 0 1 0 0 0 0 0 0 0]
-        [0 0 0 0 -1 1 0 0 0 0 0 0]
-        [0 -1 0 0 0 1 0 0 0 0 0 0]
-        [0 -1 0 0 0 0 0 1 0 0 0 0]
-        [0 0 0 0 0 0 -1 1 0 0 0 0]
-        [0 0 -1 0 0 0 1 0 0 0 0 0]
-        [0 0 -1 1 0 0 0 0 0 0 0 0]
-        [-1 0 0 0 0 0 0 0 1 0 0 0]
-        [0 0 0 -1 0 0 0 0 1 0 0 0]
-        [0 0 0 0 0 0 0 0 -1 1 0 0]
-        [0 0 0 0 0 0 -1 0 0 1 0 0]
-        [0 0 0 0 0 0 0 0 0 -1 1 0]
-        [0 0 0 0 -1 0 0 0 0 0 1 0]
-        [0 0 0 0 0 0 0 0 0 0 -1 1]
-        [0 0 0 0 0 0 0 -1 0 0 0 1]
-        [0 0 0 0 0 -1 0 0 0 0 0 1]
+		[0 0 0 0 -1 0 0 0 0 0 1 0]
+		[0 0 0 0 -1 1 0 0 0 0 0 0]
+		[0 0 0 -1 0 0 0 0 1 0 0 0]
+		[0 0 -1 1 0 0 0 0 0 0 0 0]
+		[0 0 -1 0 0 0 1 0 0 0 0 0]
+		[0 0 0 0 0 0 -1 0 0 1 0 0]
+		[0 0 0 0 0 0 -1 1 0 0 0 0]
+		[0 0 0 0 0 0 0 -1 0 0 0 1]
+		[0 -1 0 0 0 0 0 1 0 0 0 0]
+		[0 -1 0 0 0 1 0 0 0 0 0 0]
+		[0 0 0 0 0 -1 0 0 0 0 0 1]
+		[0 0 0 0 0 0 0 0 0 0 -1 1]
+		[0 0 0 0 0 0 0 0 0 -1 1 0]
+		[0 0 0 0 0 0 0 0 -1 1 0 0]
+		[-1 0 0 0 0 0 0 0 1 0 0 0]
     ]
     @@test FE == [
-        [1 0 0 0 0 0 0 -1 0 -1 0 -1 1 0 0 0]
-        [0 1 0 0 0 0 0 0 0 0 0 0 -1 -1 0 1]
-        [0 0 0 0 -1 0 0 0 0 0 1 1 0 1 -1 0]
-        [0 0 -1 1 0 0 0 0 0 0 0 0 0 0 1 -1]
-        [0 0 0 0 0 -1 1 0 1 1 -1 0 0 0 0 0]
+        [1 1 0 0 0 0 0 0 0 0 0 0 0 -1 -1 -1]
+		[0 -1 1 0 0 0 0 0 0 0 0 1 -1 0 0 0]
+		[0 0 0 1 1 -1 -1 0 0 0 0 0 0 0 1 0]
+		[0 0 0 0 0 0 0 0 1 1 -1 -1 0 0 0 0]
+		[0 0 0 0 0 0 -1 1 1 0 0 0 -1 -1 0 0]
     ]
 
 end
@@ -939,26 +930,26 @@ end
     @@test all(map((a,b)->-err<a-b<+err, V, [
         0 0; 2 0; 2 1; 1 1; 1 2; 0 2; 1.5 0; 1.5 1.5; 0 1.5; 1.5 1; 1 1.5]))
     @@test EV == [
-        [0 0 0 -1 0 0 0 0 0 1 0]
-        [0 0 -1 0 0 0 0 0 0 1 0]
-        [0 -1 1 0 0 0 0 0 0 0 0]
-        [-1 0 0 0 0 0 1 0 0 0 0]
-        [0 -1 0 0 0 0 1 0 0 0 0]
-        [0 0 0 0 -1 0 0 0 0 0 1]
-        [0 0 0 0 -1 1 0 0 0 0 0]
         [0 0 0 0 0 -1 0 0 1 0 0]
-        [0 0 0 0 0 0 0 0 -1 0 1]
-        [-1 0 0 0 0 0 0 0 1 0 0]
-        [0 0 0 0 0 0 0 -1 0 0 1]
-        [0 0 0 0 0 0 0 -1 0 1 0]
-        [0 0 0 0 0 0 -1 0 0 1 0]
-        [0 0 0 -1 0 0 0 0 0 0 1]
+		[0 0 0 0 -1 1 0 0 0 0 0]
+		[0 0 0 0 -1 0 0 0 0 0 1]
+		[0 0 0 -1 0 0 0 0 0 0 1]
+		[0 0 0 -1 0 0 0 0 0 1 0]
+		[-1 0 0 0 0 0 1 0 0 0 0]
+		[0 0 -1 0 0 0 0 0 0 1 0]
+		[0 -1 1 0 0 0 0 0 0 0 0]
+		[0 -1 0 0 0 0 1 0 0 0 0]
+		[0 0 0 0 0 0 -1 0 0 1 0]
+		[0 0 0 0 0 0 0 -1 0 1 0]
+		[0 0 0 0 0 0 0 -1 0 0 1]
+		[0 0 0 0 0 0 0 0 -1 0 1]
+		[-1 0 0 0 0 0 0 0 1 0 0]
     ]
     @@test FE == [
-        [1 0 0 0 0 0 0 0 0 0 1 -1 0 -1]
-        [0 1 1 0 -1 0 0 0 0 0 0 0 -1 0]
-        [-1 0 0 1 0 0 0 0 -1 -1 0 0 1 1]
-        [0 0 0 0 0 -1 1 1 1 0 0 0 0 0]
+        [1 1 -1 0 0 0 0 0 0 0 0 0 1 0]
+		[0 0 0 1 -1 1 0 0 0 1 0 0 -1 -1]
+		[0 0 0 0 0 0 1 1 -1 -1 0 0 0 0]
+		[0 0 0 -1 1 0 0 0 0 0 -1 1 0 0]
     ]
 end
 @}
