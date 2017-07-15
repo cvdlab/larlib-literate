@@ -56,7 +56,10 @@ In the internal function we store an array of integers called \texttt{count\_mar
 that increments every time a cells is visited. We do that because to build 
 a complete $d$-boundary, we must visit every $(d-1)$-cell exactly twice;
 Said so, it appears clear that the algorithm must iterate until a $(d-1)$-cell 
-marked with 0 or 1 can be found:
+marked with 0 or 1 can be found. Near to \texttt{count\_marks} is stored another
+array called \texttt{dir\_marks} that memorizes the direction in which each $(d-1)$-cell
+has been visited the last time (this is useful to determine the direction in which the cell
+must be visited next)
 
 @D Function body
 @{lld_cellsnum, ld_cellsnum = size(ld_bounds)
@@ -157,8 +160,8 @@ It determines if the function should choose the first available
 ($d-1$)-cell rotating clockwise or counterclockwise around the ($d-2$)-cell.
 
 @D minimal\_cycles utilities
-@{function nextprev(ldd::Int64, ld::Int64, norp)
-    as = angles[ldd]
+@{function nextprev(lld::Int64, ld::Int64, norp)
+    as = angles[lld]
     ne = findfirst(as, ld)
     while true
         ne += norp
