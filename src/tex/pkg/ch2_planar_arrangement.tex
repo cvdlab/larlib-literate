@@ -648,11 +648,19 @@ end
 For each shell we must compute if it is contained
 in another shell. So, for every couple of shells
 we must check if one is contained into the other.
-This happens when the bounding box of a shell is
-completely contained in the bounding box of an another
-shell. So, before building the containment graph, we
+This check must be performed by shooting a ray from
+a vertex of the first cell and then count the intersections
+of it with the edges of the second cell; if the number 
+of the intersections is odd then the first cell is contained
+in the second one. This computation is rather heavy but can be
+speeded up by pre-computing an approximate containment graph 
+using a bounding box containment test. Then the graph must be
+pruned shooting a ray for every arc of it. In this way we reduce
+considerably the amount of rays we shoot.
+
+Before building the containment graph, we
 compute the bounding boxes of the shells and we store them into
-the \texttt{shell\_bboxes} list (we are going to use these later, too).
+the \texttt{shell\_bboxes} list (we are going to use this also later).
 The bounding box logic is implemented in the utilities of chapter 5 
 (ref. \ref{sec:bboxes})
 
@@ -663,14 +671,12 @@ for i in 1:n
     push!(shell_bboxes, bbox(V[vs_indexes, :]))
 end
 
-containment_graph = containment_test(shell_bboxes)
+containment_graph = pre_containment_test(shell_bboxes)
+containment_graph = prune_containment_graph(n, V, EVs, shells, containment_graph)
 @}
 
-The function that actually computes the containment
-graph simply iterates through every couple of 
-
 @D planar\_arrangement support functions
-@{function containment_test(bboxes)
+@{function pre_containment_test(bboxes)
     n = length(bboxes)
     containment_graph = spzeros(Int8, n, n)
 
@@ -681,9 +687,112 @@ graph simply iterates through every couple of
             end
         end
     end
+
     return containment_graph
 end
 @}
+
+The ray logic is explained just below the next macro.
+
+@D planar\_arrangement support functions
+@{function prune_containment_graph(n, V, EVs, shells, graph)
+    
+    for i in 1:n
+        an_edge = shells[i].nzind[1]
+        origin_index = EVs[i][an_edge, :].nzind[1]
+        origin = V[origin_index, :]
+ 
+        for j in 1:n
+            if i != j
+                if graph[i, j] == 1
+                    contains = false
+                    @< Shoot ray @>
+                    if !contains
+                        graph[i, j] = 0
+                    end
+                end
+             end
+         end
+
+     end
+     return graph
+end
+@}
+
+We shoot a ray from the vertex $o$ with the same direction
+of the positive $x_1$ semi-axis.
+When we want to find the intersection of the ray with an edge,
+we parametrize it:
+
+\begin{equation}
+\label{eq:edge}
+    p = p_1 + \alpha(p_2-p_1), \quad\alpha\in[0, 1]
+\end{equation}
+
+Then we find the value that $\alpha$ assumes when the edge
+intersects the line parallel to the $x_1$ axis that passes through $o$:
+
+\begin{gather*}
+    \begin{bmatrix}
+        o_x \\ o_y
+    \end{bmatrix}
+    = 
+    \begin{bmatrix}
+        p_{1x} \\ p_{1y}
+    \end{bmatrix}
+    +
+    \alpha
+    \begin{bmatrix}
+        p_{2x} - p_{1x} \\ p_{2y} - p_{1y}
+    \end{bmatrix} \\
+    o_y = p_{1y} + \alpha(p_{2y} - p_{1y}) \\
+    \alpha = \frac{o_y - p_{1y}}{p_{2y} - p_{1y}}
+\end{gather*}
+
+If $\alpha\in[0, 1]$ then the edge intersect the line, and we find the point
+of intersection by putting $\alpha$ into equation \ref{eq:edge}.
+The intersection must be count only if the freshly computed point
+is on the right of the vertex $o$.
+
+The case when the ray encounters a vertex requires additional care:
+we are testing the intersections of the ray with edges, and every
+vertex is shared by two or more edges. So we cannot simply increase the 
+\texttt{hits} counter every time we encounter a vertex because this will lead
+to miscalculations when an even number of edges share the same vertex.
+We resolve this by storing the already visited vertices into the 
+\texttt{visited\_verts} list.
+
+@D Shoot ray
+@{hits = 0
+visited_verts = []
+shell_edge_indexes = shells[j].nzind
+ev = EVs[j][shell_edge_indexes, :]
+
+for edge in 1:ev.m
+    a_id, b_id = ev[edge, :].nzind
+    a = V[a_id, :]
+    b = V[b_id, :]
+    v = b - a
+    alpha = (origin[2] - a[2]) / v[2]
+    if 0 <= alpha <= 1
+        x_int = a[1] + v[1]*alpha
+        if x_int > origin[1]
+            if 0 <= alpha <= 1
+                hits += 1
+            else
+                p = (alpha == 0) ? a : b
+                if !(p in visited_verts)
+                    hits += 1
+                    push!(visited_verts, p)
+                end
+            end
+        end
+    end
+end
+
+contains = hits % 2 == 1
+@}
+
 
 %+++++++++++++++++++++++++++++++%
 \subsection{Transitive reduction}
@@ -826,7 +935,7 @@ Here we present some general tests for the \texttt{planar\_arrangement} function
         [0.666667  1.0]
     ]))
     @@test EV == [-1 0 0 0 1; 0 0 -1 1 0; 0 0 -1 0 1; 0 0 0 -1 1; 0 -1 0 1 0; -1 1 0 0 0]
-    @@test FE == [-1 0 0 1 1 1; 0 -1 1 -1 0 0]
+    @@test full(FE) == [-1 0 0 1 1 1; 0 -1 1 -1 0 0]
 end
 @}
 
@@ -883,14 +992,13 @@ end
 		[0 0 0 0 0 0 0 0 -1 1 0 0]
 		[-1 0 0 0 0 0 0 0 1 0 0 0]
     ]
-    @@test FE == [
-        [1 1 0 0 0 0 0 0 0 0 0 0 0 -1 -1 -1]
-		[0 -1 1 0 0 0 0 0 0 0 0 1 -1 0 0 0]
-		[0 0 0 1 1 -1 -1 0 0 0 0 0 0 0 1 0]
-		[0 0 0 0 0 0 0 0 1 1 -1 -1 0 0 0 0]
-		[0 0 0 0 0 0 -1 1 1 0 0 0 -1 -1 0 0]
+    @@test full(FE) == [
+        [1   1  0  0  0   0   0   0   0  0   0   0   0  -1  -1  -1]
+        [0  -1  1  0  0   0   0   0   0  0   0   1  -1   0   0   0]
+        [0   0  0  1  1  -1  -1   0   0  0   0   0   0   0   1   0]
+        [0   0  0  0  0   0   0   0   1  1  -1  -1   0   0   0   0]
+        [0   0  0  0  0   0   1  -1  -1  0   0   0   1   1   0   0]
     ]
-
 end
 @}
 
@@ -945,7 +1053,7 @@ end
 		[0 0 0 0 0 0 0 0 -1 0 1]
 		[-1 0 0 0 0 0 0 0 1 0 0]
     ]
-    @@test FE == [
+    @@test full(FE) == [
         [1 1 -1 0 0 0 0 0 0 0 0 0 1 0]
 		[0 0 0 1 -1 1 0 0 0 1 0 0 -1 -1]
 		[0 0 0 0 0 0 1 1 -1 -1 0 0 0 0]
