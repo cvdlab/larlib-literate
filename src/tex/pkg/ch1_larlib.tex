@@ -98,8 +98,8 @@ end
 
 function generate_short_lines(n)
     origins = rand(n, 2)
-    directions = mapslices(normalize, rand(n, 2), 2)
-    alphas = .2*rand(n)+.1
+    directions = mapslices(normalize, rand(n, 2) - .5*ones(n, 2), 2)
+    alphas = .1*rand(n)+.05
     new_points = Array{Float64, 2}(n, 2)
     for i in 1:n
         new_points[i, :] = origins[i, :] + alphas[i]*directions[i, :]

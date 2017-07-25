@@ -618,8 +618,8 @@ Then we check which face the two vertices have in common.
 
 @D planar\_arrangement support functions
 @{function get_external_cycle(V::Verts, EV::Cells, FE::Cells)
-    FV = abs(FE)*EV
-    vs = sparsevec(mapslices(sum, abs(EV), 1)).nzind
+    FV = abs.(FE)*EV
+    vs = sparsevec(mapslices(sum, abs.(EV), 1)).nzind
     minv_x1 = maxv_x1 = minv_x2 = maxv_x2 = pop!(vs)
     for i in vs
         if V[i, 1] > V[maxv_x1, 1]
@@ -667,7 +667,7 @@ The bounding box logic is implemented in the utilities of chapter 5
 @D Containment test
 @{shell_bboxes = []
 for i in 1:n
-    vs_indexes = (abs(EVs[i]')*abs(shells[i])).nzind
+    vs_indexes = (abs.(EVs[i]')*abs.(shells[i])).nzind
     push!(shell_bboxes, bbox(V[vs_indexes, :]))
 end
 
@@ -838,7 +838,7 @@ sums = Array{Tuple{Int, Int, Int}}(0);
 
 for father in 1:n
     if sum(containment_graph[:, father]) > 0
-        father_bboxes = bboxes(V, abs(EVs[father]')*abs(boundaries[father]'))
+        father_bboxes = bboxes(V, abs.(EVs[father]')*abs.(boundaries[father]'))
         for child in 1:n
             if containment_graph[child, father] > 0
                 child_bbox = shell_bboxes[child]
