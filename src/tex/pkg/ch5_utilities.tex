@@ -53,6 +53,53 @@ function bbox_contains(container, contained)
 end
 @}
 
+\section{Cells area calculation}
+\label{sec:cell_area}
+
+@D Utilities
+@{function cell_area(V::Verts, EV::Cells, face::Cell)
+    function triangle_area(ps::Verts)
+        ret = ones(3,3)
+        ret[:, 1:2] = ps
+        return -.5*det(ret)
+    end
+
+    area = 0
+    ps = [0, 0, 0]
+
+    for i in face.nzind
+        edge = face[i]*EV[i, :]
+        skip = false
+
+        for e in edge.nzind
+            if e != ps[1]
+                if edge[e] < 0
+                    if ps[1] == 0
+                        ps[1] = e
+                        skip = true
+                    else
+                        ps[2] = e
+                    end
+                else
+                    ps[3] = e
+                end
+            else
+                skip = true
+                break
+            end
+        end
+
+        if !skip
+            area += triangle_area(V[ps, :])
+        end
+    end
+
+    return area
+end
+
+
+@}
+
 
 \backmatter
 
