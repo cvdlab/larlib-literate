@@ -643,7 +643,7 @@ Then we check which face the two vertices have in common.
         return cells[1]
     else
         for c in cells
-            if cell_area(V, EV, FE[c, :]) > 0
+            if cell_area(V, EV, FE[c, :]) < 0
                 return c
             end
         end

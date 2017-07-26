@@ -61,7 +61,7 @@ end
     function triangle_area(ps::Verts)
         ret = ones(3,3)
         ret[:, 1:2] = ps
-        return -.5*det(ret)
+        return .5*det(ret)
     end
 
     area = 0
@@ -96,8 +96,18 @@ end
 
     return area
 end
+@}
 
+\section{Skeletal merge}
 
+@D Utilities
+@{function skel_merge(V1::Verts, V2::Verts, EV1::Cells, EV2::Cells)
+    V = [V1; V2]
+    EV = spzeros(Int8, EV1.n + EV2.n, EV1.m + EV2.m)
+    EV[1:EV1.n, 1:EV1.m] = EV1
+    EV[EV1.n+1:end, EV1.m+1:end] = EV2
+    V, EV
+end
 @}
 
 
