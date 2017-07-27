@@ -53,22 +53,23 @@
         push!(faces, verts)
     end
 
-    println("FV = ", string(faces)[15:end])
+    "FV = " * string(faces)[15:end]
 end
 
 function lar2py(V, EV)
-    print("V = [[0,0]")
+    text = "V = [[0,0]"
     for i in 1:size(V, 1)
-        print(",", vec(V[i, :]))
+        text = text * "," * string(vec(V[i, :]))
     end
-    println("]")
+    text = text * "]\n"
     
-    print("EV = [")
+    text = text * "EV = ["
     for i in 1:size(EV, 1)
-        if i > 1 print(",") end
-        print(EV[i, :].nzind)
+        if i > 1 text = text * "," end
+        text = text * string(EV[i, :].nzind)
     end
-    println("]")
+    text = text * "]"
+    return text
 end
 
 function generate_cube_lines(ne)
