@@ -136,7 +136,7 @@ point and a parameter that is useful for sorting the fragmentation points of an 
     a = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / denom
     b = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / denom
     
-    if 0 < a < 1 && 0 < b < 1
+    if 0 <= a <= 1 && 0 <= b <= 1
         p = [(x1 + a*(x2-x1))  (y1 + a*(y2-y1))]
         push!(ret, (p, a))
     elseif isnan(a) && isnan(b) 
@@ -267,7 +267,7 @@ which provides a reliable implementation of the \texttt{KDTree} data structure.
 @{using NearestNeighbors
 @}
 @D planar\_arrangement support functions
-@{function merge_vertices(V::Verts, EV::Cells, err=1e-10)
+@{function merge_vertices(V::Verts, EV::Cells, err=1e-4)
     kdtree = KDTree(V')
     tocheck = collect(size(V,1):-1:1)
     todelete = Array{Int64, 1}()
@@ -511,9 +511,14 @@ end
 %+++++++++++++++++++++++++%
 \subsection{Implementation}
 Like for the vertices merge we simply call the freshly implemented \texttt{biconnected\_components} function
-(ref. \ref{sec:biconnected_components}).
+(ref. \ref{sec:biconnected_components}). If no biconnected components are found, the procedure will stop and return nothing.
 @D Find maximal biconnected components
 @{bicon_comps = biconnected_components(EV)
+
+if isempty(bicon_comps)
+    println("No biconnected components found.")
+    return
+end
 @}
 We also need to delete edges that are not part of a maximal biconnected component
 and then to delete the isolated vertices from both \texttt{V} and \texttt{EV}.
@@ -609,7 +614,13 @@ we need to individuate the external cycle. To do this we iterate over the
 vertices of the passed \texttt{EV} to find four vertices: the two with biggest
 $x_1$ and $x_2$ coordinates (\texttt{maxv\_x1} and \texttt{maxv\_x2}) and the 
 two with the smallest one (\texttt{minv\_x1} and \texttt{minv\_x2}). 
-Then we check which face the two vertices have in common.
+Then we check which face the two vertices have in common. 
+
+It can happen that the two vertices have more than one face in common
+(for example when a biconnected component is made up only by one face);
+in this case we simply pick the cell with negative area. The area
+computation routines are located into Chapter 5 (ref. \ref{sec:cell_area})
+
 
 @D planar\_arrangement support functions
 @{function get_external_cycle(V::Verts, EV::Cells, FE::Cells)
