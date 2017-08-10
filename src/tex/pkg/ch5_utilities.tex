@@ -103,9 +103,9 @@ end
 @D Utilities
 @{function skel_merge(V1::Verts, V2::Verts, EV1::Cells, EV2::Cells)
     V = [V1; V2]
-    EV = spzeros(Int8, EV1.n + EV2.n, EV1.m + EV2.m)
-    EV[1:EV1.n, 1:EV1.m] = EV1
-    EV[EV1.n+1:end, EV1.m+1:end] = EV2
+    EV = spzeros(Int8, EV1.m + EV2.m, EV1.n + EV2.n)
+    EV[1:EV1.m, 1:EV1.n] = EV1
+    EV[EV1.m+1:end, EV1.n+1:end] = EV2
     V, EV
 end
 @}
