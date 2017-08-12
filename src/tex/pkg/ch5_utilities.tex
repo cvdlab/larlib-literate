@@ -23,12 +23,20 @@
 \chapter{Utilities}
 \label{ch:utilities}
 
+The functionalities shared between all the components of LAR
+are defined in here.
+
 @O lib/jl/utilities.jl
 @{@< Aliases @>
 @< Utilities @>
 @}
 
 \section{Types}
+
+To store vertices and cells boundary matrices, 
+we use types already built in the standard Julia.
+We use these aliases to standardize the types used 
+throughout LAR. 
 
 @D Aliases
 @{const Verts = Array{Float64, 2}
@@ -38,6 +46,10 @@ const Cell = SparseVector{Int8, Int}
 
 \section{Bounding boxes}
 \label{sec:bboxes}
+
+Bounding boxes are essential in many steps of many
+algorithms in LAR. Here we present a method for building
+and performing containment tests on n-dimensional bounding boxes.
 
 @D Utilities
 @{function bbox(vertices::Verts)
@@ -53,14 +65,33 @@ function bbox_contains(container, contained)
 end
 @}
 
-\section{Cells area calculation}
-\label{sec:cell_area}
+\section{Face area calculation}
+\label{sec:face_area}
+
+To compute the area of a generic (convex or concave) face,
+we pick a pivot vertex of the face and then we iterate over
+every edge of the face calculating the area of the triangle
+made by the pivot vertex and the ordered extremes of the current edge.
+The area of the full face is the sum of the areas of the single triangles.
+This works because of the single triangles we compute the signed area with
+this formula:
+\begin{gather*}
+    A = \frac{1}{2}
+    \begin{vmatrix}
+        p_{1x} & p_{1y} & 1 \\
+        p_{2x} & p_{2y} & 1 \\
+        p_{3x} & p_{3y} & 1
+    \end{vmatrix}
+\end{gather*}
+Where $p_1$, $p_2$ and $p_3$ are the vertices of the triangle ($p_1$ is the pivot vertex). 
+Please notice that the result of this formula will be negative only if these vertices 
+are arranged in clockwise order.
 
 @D Utilities
-@{function cell_area(V::Verts, EV::Cells, face::Cell)
-    function triangle_area(ps::Verts)
+@{function face_area(V::Verts, EV::Cells, face::Cell)
+    function triangle_area(triangle_points::Verts)
         ret = ones(3,3)
-        ret[:, 1:2] = ps
+        ret[:, 1:2] = triangle_points
         return .5*det(ret)
     end
 
@@ -99,6 +130,9 @@ end
 @}
 
 \section{Skeletal merge}
+
+It is generally useful to have a utility to merge the skeletons of
+two $d=2$ cellular complexes.
 
 @D Utilities
 @{function skel_merge(V1::Verts, V2::Verts, EV1::Cells, EV2::Cells)
