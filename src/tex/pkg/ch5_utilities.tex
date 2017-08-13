@@ -59,14 +59,41 @@ function bbox_contains(container, contained)
 end
 @}
 
+\subsection{Tests}
+\begin{figure}[h]
+    \centering
+    \includegraphics{./img/ch5-bboxes.pdf}
+    \caption{(a) is a visualization of the test for bboxes building, (b) for bbox containment.}
+\end{figure}
+@D Utilities tests
+@{@@testset "Bounding boxes building test" begin
+    V = [.56 .28; .84 .57; .35  1.0; .22  .43]
+    @@test bbox(V) == ([.22 .28], [.84 1.0])
+end
+
+@@testset "Bounding boxes containment test" begin
+    bboxA = ([0. 0.], [1. 1.])
+    bboxB = ([.5 .5], [1.5 1.5])
+    bboxC = ([1. 1.], [1.25 1.25])
+    bboxD = ([0 .75], [.25 1])
+    bboxE = ([0 1.25], [.25 1.5])
+
+    @@test bbox_contains(bboxA, bboxD)
+    @@test bbox_contains(bboxB, bboxC)
+    @@test !bbox_contains(bboxA, bboxB)
+    @@test !bbox_contains(bboxA, bboxE)
+end
+@}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Face area calculation}
 \label{sec:face_area}
 
 \begin{figure}[h]
-    \includegraphics[width=\textwidth]{./img/ch5-1.pdf}
-    \caption{Hello}
+    \includegraphics[width=\textwidth]{./img/ch5-area.pdf}
+    \caption{A visual representation of the face area calculation algorithm. The area
+    of the face is the sum of the areas of each triangle which can be build using the 
+    pivot vertex and the other vertices of the face}
 \end{figure}
 \noindent
 To compute the area of a generic (convex or concave) face,
@@ -131,12 +158,11 @@ end
 @}
 
 \subsection{Tests}
-
-\begin{center}
-    \includegraphics{./img/ch5-2.pdf}
-\end{center}
-\noindent Consider the two faces drawn above, they must have complimentary area.
-Let's build the example in LAR.
+\begin{figure}[h]
+    \centering
+    \includegraphics{./img/ch5-area_test.pdf}
+\end{figure}
+\noindent The two faces drawn above they must have complimentary area.
 @D Utilities tests
 @{@@testset "Face area calculation test" begin
     V = Float64[2 1; 1 2; 0 0; 1 1; 2 0; 0 2]
