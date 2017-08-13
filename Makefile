@@ -20,6 +20,8 @@ lib: lib_pdf lib_clean
 lib_code:
 	cp $(LIB_SRC_DIR)/*.tex ./
 	cp $(LIB_SRC_DIR)/*.bib ./
+	mkdir img
+	cp $(LIB_SRC_DIR)/img/*.pdf ./img/
 	python tex_merger.py
 	nuweb -n book
 
@@ -34,7 +36,7 @@ lib_pdf: $(LIB_SRC_DIR)/*.tex
 	
 lib_clean:
 	-mv -fv *.pdf $(PDF_DIR)
-	-rm -v *.tex *.w *.aux *.log *.out *.toc *.bib *.bbl *.blg
+	-rm -Rv *.tex *.w *.aux *.log *.out *.toc *.bib *.bbl *.blg ./img
 	
 test:
 
