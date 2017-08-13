@@ -9,6 +9,16 @@ are defined in here.
 @< Utilities @>
 @}
 
+\subsection{Tests}
+As usual every function has some unit tests.
+
+@O test/jl/utilities.jl
+@{using Base.Test
+include("../../lib/jl/utilities.jl")
+
+@< Utilities tests @>
+@}
+
 
 %%%%%%%%%%%%%%%
 \section{Types}
@@ -23,6 +33,8 @@ throughout LAR.
 const Cells = SparseMatrixCSC{Int8, Int}
 const Cell = SparseVector{Int8, Int}
 @}
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%
@@ -123,6 +135,22 @@ end
 \begin{center}
     \includegraphics{./img/ch5-2.pdf}
 \end{center}
+\noindent Consider the two faces drawn above, they must have complimentary area.
+Let's build the example in LAR.
+@D Utilities tests
+@{@@testset "Face area calculation test" begin
+    V = Float64[2 1; 1 2; 0 0; 1 1; 2 0; 0 2]
+    EV = spzeros(Int8, 6, 6)
+    EV[1, [1, 4]] = [-1, 1]; EV[2, [2, 4]] = [-1, 1]
+    EV[3, [2, 6]] = [-1, 1]; EV[4, [3, 6]] = [-1, 1]
+    EV[5, [3, 5]] = [-1, 1]; EV[6, [1, 5]] = [-1, 1]
+    FE = spzeros(Int8, 2, 6)
+    FE[1, :] = [ 1 -1  1 -1  1 -1]
+    FE[2, :] = [-1  1 -1  1 -1  1]
+
+    @@test face_area(V, EV, FE[1,:]) == -face_area(V, EV, FE[2,:])
+end
+@}
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 \section{Skeletal merge}
