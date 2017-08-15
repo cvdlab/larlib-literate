@@ -350,6 +350,14 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Maximal biconnected components}
+\begin{figure}[h]
+    \centering
+    \includegraphics{./img/ch2-bicon.pdf}
+    \caption{An example graph where the maximal biconnected 
+    components are highlighted in green and the edges are numbered. 
+    We have here three components formed by the sets of edges {1,5,9}, {2,6,10} and {3,11,7} }
+    \label{img:bicon_comps}
+\end{figure}
 %+++++++++++++++++++++++++++%
 \subsection{Support function}
 \label{sec:biconnected_components}
@@ -513,11 +521,7 @@ V = V[tokeep, :]
 @}
 %++++++++++++++++%
 \subsection{Tests}
-\begin{figure}[h]
-    \centering
-    \includegraphics{./img/ch2-bicon.pdf}
-    \caption{The graph used in the test. The maximal biconnected components are highlighted in green.}
-\end{figure}
+The graph built here is the one of figure \ref{img:bicon_comps}.
 @D planar\_arrangement support functions tests
 @{@@testset "biconnected_components test set" begin
     EV = Int8[0 0 0 1 0 0 0 0 0 0 1 0; #1
@@ -832,7 +836,7 @@ graph has been traversed. Every element is a triple made of: the father
 index, the father's container cell index and the child index.
 Once we individuated the rows to sum, we actually need to perform the sum.
 This is non trivial because we must build the final boundary matrix.
-These computations are delegated to the $\langle$ Create FE $\rangle$ macro.
+These computations are delegated to the $\langle$ Create EV and FE $\rangle$ macro.
 @D Cell merging
 @{@< Cell merging support functions @>
 
@@ -855,7 +859,7 @@ for father in 1:n
     end
 end
 
-@< Create FE @>
+@< Create EV and FE @>
 @}
 
 The \texttt{bboxes} computes the bounding boxes of each cycle
@@ -879,7 +883,7 @@ While doing this we store into \texttt{c\_offsets} the column offset of each
 biconnected component; we will use this information to quickly find the columns 
 to sum from the \texttt{sums} array of triples.
 
-@D Create FE
+@D Create EV and FE
 @{EV = vcat(EVs...)
 edgenum = size(EV, 1)
 facenum = sum(map(x->size(x,1), boundaries))
@@ -955,11 +959,11 @@ end
 \begin{figure}[h]
     \centering
     \includegraphics{./img/ch2-containmenttest.pdf}
-    \caption{(a) is our test case. (b) is the containment graph built using 
-        only the \texttt{pre\_containment\_test} function. The arc (4,5) is in there
-        because the bounding box of the component no. 5 is completely contained in
-        the bounding box of no. 4. (c) shows the graph after the 
-        \texttt{prune\_containment\_graph} function.}
+    \caption{(a) is our test case. The numbers identify the connected components. 
+        (b) is the containment graph built using only the \texttt{pre\_containment\_test} 
+        function. The arc (4,5) is in there because the bounding box of the component 
+        no. 5 is completely contained in the bounding box of no. 4. (c) shows 
+        the graph after the \texttt{prune\_containment\_graph} function.}
 \end{figure}
 
 @D Face creation tests
