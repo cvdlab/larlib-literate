@@ -650,7 +650,8 @@ in the second one. This computation is rather heavy but can be
 speeded up by pre-computing an approximate containment graph 
 using a bounding box containment test. Then the graph must be
 pruned shooting a ray for every arc of it. In this way we reduce
-considerably the amount of rays we shoot.
+considerably the amount of rays we shoot. (This is also visually
+explained in the tests: ref. \ref{sec:conttest_test})
 
 Before building the containment graph, we
 compute the bounding boxes of the shells and we store them into
@@ -796,12 +797,19 @@ As explained by A. V. Aho, M. R. Garey, and J. D. Ullman \cite{parallel_transiti
 we have:
 
 @D Transitive reduction
-@{for j in 1:n
-    for i in 1:n
-        if containment_graph[i, j] > 0
-            for k in 1:n
-                if containment_graph[j, k] > 0
-                    containment_graph[i, k] = 0
+@{transitive_reduction!(containment_graph) 
+@}
+
+@D planar\_arrangement support functions
+@{function transitive_reduction!(graph)
+    n = size(graph, 1)
+    for j in 1:n
+        for i in 1:n
+            if graph[i, j] > 0
+                for k in 1:n
+                    if graph[j, k] > 0
+                        graph[i, k] = 0
+                    end
                 end
             end
         end
@@ -938,5 +946,85 @@ end
     FE = sparse(FE)
 
     @@test get_external_cycle(V, EV, FE) == 3
+end
+@}
+
+\subsubsection{Containment test}
+\label{sec:conttest_test}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics{./img/ch2-containmenttest.pdf}
+    \caption{(a) is our test case. (b) is the containment graph built using 
+        only the \texttt{pre\_containment\_test} function. The arc (4,5) is in there
+        because the bounding box of the component no. 5 is completely contained in
+        the bounding box of no. 4. (c) shows the graph after the 
+        \texttt{prune\_containment\_graph} function.}
+\end{figure}
+
+@D Face creation tests
+@{@@testset "Containment test" begin
+    V = [  0   0;    4   0;    4   2;   2   4;  0 4;
+          .5  .5;  2.5  .5;  2.5 2.5;  .5 2.5;
+           1   1;  1.5   1;    1   2;
+           2   1;    2   2;  1.5   2;
+         3.5 3.5;    3 3.5;  3.5   3]
+    EV1 = Int8[ 0  0  0  0  0  0  0  0  0 -1  1  0  0  0  0  0  0  0;
+                0  0  0  0  0  0  0  0  0  0 -1  1  0  0  0  0  0  0;
+                0  0  0  0  0  0  0  0  0 -1  0  1  0  0  0  0  0  0]
+    EV2 = Int8[ 0  0  0  0  0  0  0  0  0  0  0  0 -1  1  0  0  0  0;
+                0  0  0  0  0  0  0  0  0  0  0  0  0 -1  1  0  0  0;
+                0  0  0  0  0  0  0  0  0  0  0  0 -1  0  1  0  0  0]
+    EV3 = Int8[ 0  0  0  0  0 -1  1  0  0  0  0  0  0  0  0  0  0  0;
+                0  0  0  0  0  0 -1  1  0  0  0  0  0  0  0  0  0  0;
+                0  0  0  0  0  0  0 -1  1  0  0  0  0  0  0  0  0  0;
+                0  0  0  0  0 -1  0  0  1  0  0  0  0  0  0  0  0  0]
+    EV4 = Int8[-1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0;
+                0 -1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0;
+                0  0 -1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0;
+                0  0  0 -1  1  0  0  0  0  0  0  0  0  0  0  0  0  0;
+               -1  0  0  0  1  0  0  0  0  0  0  0  0  0  0  0  0  0]
+    EV5 = Int8[ 0  0  0  0  0  0  0  0  0  0  0  0  0  0  0 -1  1  0;
+                0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0 -1  1;
+                0  0  0  0  0  0  0  0  0  0  0  0  0  0  0 -1  0  1]
+    EVs = map(sparse, [EV1, EV2, EV3, EV4, EV5])
+    
+    shell1 = Int8[-1 -1  1];
+    shell2 = Int8[-1 -1  1];
+    shell3 = Int8[-1 -1 -1  1];
+    shell4 = Int8[-1 -1 -1 -1  1];
+    shell5 = Int8[-1 -1  1];
+    shells = map(sparsevec, [shell1, shell2, shell3, shell4, shell5])
+    
+    shell_bboxes = []
+    n = 5
+    for i in 1:n
+        vs_indexes = (abs(EVs[i]')*abs(shells[i])).nzind
+        push!(shell_bboxes, bbox(V[vs_indexes, :]))
+    end
+
+    graph = pre_containment_test(shell_bboxes)
+    @@test graph == [0 0 1 1 0; 0 0 1 1 0; 0 0 0 1 0; 0 0 0 0 0; 0 0 0 1 0]
+
+    graph = prune_containment_graph(n, V, EVs, shells, graph)
+    @@test graph == [0 0 1 1 0; 0 0 1 1 0; 0 0 0 1 0; 0 0 0 0 0; 0 0 0 0 0]
+end
+@}
+
+\subsubsection{Transitive reduction}
+\label{sec:transitivered_test}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics{./img/ch2-transitivered.pdf}
+    \caption{Before (a) and after (b) transitive reduction performed on
+    the graph of the previous test set.}
+\end{figure}
+
+@D Face creation tests
+@{@@testset "Transitive reduction" begin
+    graph = [0 0 1 1 0; 0 0 1 1 0; 0 0 0 1 0; 0 0 0 0 0; 0 0 0 0 0]
+    transitive_reduction!(graph)
+    @@test graph == [0 0 1 0 0; 0 0 1 0 0; 0 0 0 1 0; 0 0 0 0 0; 0 0 0 0 0]
 end
 @}
