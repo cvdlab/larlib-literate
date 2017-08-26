@@ -42,9 +42,11 @@ test:
 
 pkg_docker:
 	if test ! -z "$$INDOCKER"; then \
-		git config --global push.default simple; \
-		git config --global user.email "$$GIT_AUTHOR_EMAIL"; \
-  		git config --global user.name "$$GIT_AUTHOR_NAME"; \
+		echo $$PUSH_CREDENTIALS > /root/.git-credentials && \
+		git config --global --replace-all credential.helper 'store' && \
+		git config --global push.default simple && \
+		git config --global user.email "$$GIT_AUTHOR_EMAIL" && \
+  		git config --global user.name "$$GIT_AUTHOR_NAME" && \
 		make pkg; \
 	fi
 
@@ -80,7 +82,14 @@ docker-lib_clean:
 	-docker run --rm -v $(PWD):/data furio/larlib-literate:latest make lib_clean	
 
 docker-pkg:
-	if test -z "$$PUSH_AUTHOR_NAME"; then PUSH_AUTHOR_NAME=LarLib; fi; \
-	if test -z "$$PUSH_AUTHOR_EMAIL"; then PUSH_AUTHOR_EMAIL=larlib@cvlab.org; fi; \
-	docker run --rm -e "INDOCKER=1" -e "GIT_AUTHOR_NAME=$$PUSH_AUTHOR_NAME" -e "GIT_AUTHOR_EMAIL=$$PUSH_AUTHOR_EMAIL" \
-	-v $(PWD):/data furio/larlib-literate:latest make pkg_docker
+	if test -z "$$PUSH_CREDENTIALS"; then \
+		echo "Configure PUSH_CREDENTIALS env var before this command"; \
+		exit 127; \
+	else \
+		if test -z "$$PUSH_AUTHOR_NAME"; then PUSH_AUTHOR_NAME=LarLib; fi; \
+		if test -z "$$PUSH_AUTHOR_EMAIL"; then PUSH_AUTHOR_EMAIL=larlib@cvlab.org; fi; \
+		docker run --rm -e "INDOCKER=1" \
+			-e "PUSH_CREDENTIALS=$$PUSH_CREDENTIALS" \
+			-e "GIT_AUTHOR_NAME=$$PUSH_AUTHOR_NAME" -e "GIT_AUTHOR_EMAIL=$$PUSH_AUTHOR_EMAIL" \
+			-v $(PWD):/data furio/larlib-literate:latest make pkg_docker; \
+	fi
