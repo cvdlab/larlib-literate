@@ -57,3 +57,21 @@ clean: lib_clean
 	-rm -R $(TEST_DIR)/*
 	-rm -R $(PDF_DIR)/*
 	-rm -Rf $(PKG_DIR)
+
+docker-all: 
+	-docker run -v $(PWD):/data furio/larlib-literate:latest make all
+
+docker-lib_pdf: 
+	-docker run -v $(PWD):/data furio/larlib-literate:latest make lib_pdf
+
+docker-lib_code: 
+	-docker run -v $(PWD):/data furio/larlib-literate:latest make lib_code
+
+docker-lib_clean: 
+	-docker run -v $(PWD):/data furio/larlib-literate:latest make lib_clean	
+
+docker-pkg: 
+	-docker run -v $(PWD):/data furio/larlib-literate:latest make pkg
+
+docker-clean: 
+	-docker run -v $(PWD):/data furio/larlib-literate:latest make clean
