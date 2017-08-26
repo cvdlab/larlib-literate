@@ -41,10 +41,12 @@ lib_clean:
 test:
 
 pkg_docker:
-	git config --global push.default simple; \
-	git config --global user.email "$$GIT_AUTHOR_EMAIL"; \
-  	git config --global user.name "$$GIT_AUTHOR_NAME"
-	make pkg
+	if test ! -z "$$INDOCKER"; then \
+		git config --global push.default simple; \
+		git config --global user.email "$$GIT_AUTHOR_EMAIL"; \
+  		git config --global user.name "$$GIT_AUTHOR_NAME"; \
+		make pkg; \
+	fi
 
 pkg: lib test
 	$(eval VERSION := $(shell cat ./VERSION))
@@ -80,7 +82,5 @@ docker-lib_clean:
 docker-pkg:
 	if test -z "$$PUSH_AUTHOR_NAME"; then PUSH_AUTHOR_NAME=LarLib; fi; \
 	if test -z "$$PUSH_AUTHOR_EMAIL"; then PUSH_AUTHOR_EMAIL=larlib@cvlab.org; fi; \
-	docker run --rm -e "GIT_AUTHOR_NAME=$$PUSH_AUTHOR_NAME" -e "GIT_AUTHOR_EMAIL=$$PUSH_AUTHOR_EMAIL" -v $(PWD):/data furio/larlib-literate:latest make pkg_docker
-
-docker-clean: 
-	-docker run --rm -v $(PWD):/data furio/larlib-literate:latest make clean
+	docker run --rm -e "INDOCKER=1" -e "GIT_AUTHOR_NAME=$$PUSH_AUTHOR_NAME" -e "GIT_AUTHOR_EMAIL=$$PUSH_AUTHOR_EMAIL" \
+	-v $(PWD):/data furio/larlib-literate:latest make pkg_docker
