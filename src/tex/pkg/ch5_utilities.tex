@@ -193,3 +193,35 @@ two $d=2$ cellular complexes.
     V, EV
 end
 @}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%
+\section{FV building}
+
+Sometimes is useful to represent a face like a sequence of vertices.
+
+@D Utilities
+@{function buildFV(EV::Cells, face::Cell)
+    startv = -1
+    nextv = 0
+    edge = 0
+
+    vs = []
+
+    while startv != nextv
+        if startv < 0
+            edge = face.nzind[1]
+            startv = EV[edge,:].nzind[face[edge] < 0 ? 2 : 1]
+            push!(vs, startv)
+        else
+            edge = setdiff(intersect(face.nzind, EV[:, nextv].nzind), edge)[1]
+        end
+        nextv = EV[edge,:].nzind[face[edge] < 0 ? 1 : 2]
+        push!(vs, nextv)
+
+    end
+
+    return vs[1:end-1]
+end
+@}
