@@ -4,14 +4,8 @@
 %%%%%%%%%%%%%%%%%%
 \section{Overview}
 @O lib/jl/dimension_travel.jl
-@{@< Imports and aliases @>
+@{include("./utilities.jl")
 @< Dimension travel functions @>
-@}
-We define some aliases to standardize data formats.
-@D Imports and aliases
-@{typealias Verts Array{Float64, 2}
-typealias Cells SparseMatrixCSC{Int8, Int}
-typealias Cell SparseVector{Int8, Int}
 @}
 %+++++++++++++%
 \subsection{Tests}
@@ -151,3 +145,44 @@ for ci in 1:cell_num
     push!(mapping, cell_indexes)
 end
 @}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Face intersection with $z=0$ plane}
+
+The intersection of a polygonal face with the $z=0$ computes
+zero, ono or more edges. To perform the intersection we find the
+intersection point of every edge with the $z=0$ plane and then
+we connect the points.
+
+@D Dimension travel functions
+@{function face_int(V::Verts, EV::Cells, face::Cell)
+
+    vs = buildFV(EV, face)
+    retV = Verts(0, 3)
+
+    for i in 1:length(vs)
+        o = V[vs[i],:]
+        j = i < length(vs) ? i+1 : 1
+        d = V[vs[j],:] - o
+
+        alpha = -o[3] / d[3]
+
+        if 0 < alpha < 1
+            p = o + alpha*d
+            retV = [retV; reshape(p, 1, 3)]
+        end
+
+    end
+
+    vnum = size(retV, 1)
+    enum = Int(vnum / 2)
+    retEV = spzeros(Int8, enum, vnum)
+
+    for i in 1:enum
+        retEV[i, 2*i-1:2*i] = [-1, 1]
+    end
+
+    retV, retEV
+end
+@} 
