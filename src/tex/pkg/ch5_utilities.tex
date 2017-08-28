@@ -182,15 +182,23 @@ end
 \section{Skeletal merge}
 
 It is generally useful to have a utility to merge the skeletons of
-two $d=2$ cellular complexes.
+two cellular complexes. We have both the $d=2$ and $d=3$ versions.
 
 @D Utilities
-@{function skel_merge(V1::Verts, V2::Verts, EV1::Cells, EV2::Cells)
+@{function skel_merge(V1::Verts, EV1::Cells, V2::Verts, EV2::Cells)
     V = [V1; V2]
     EV = spzeros(Int8, EV1.m + EV2.m, EV1.n + EV2.n)
     EV[1:EV1.m, 1:EV1.n] = EV1
     EV[EV1.m+1:end, EV1.n+1:end] = EV2
     V, EV
+end
+
+function skel_merge(V1::Verts, EV1::Cells, FE1::Cells, V2::Verts, EV2::Cells, FE2::Cells)
+    FE = spzeros(Int8, FE1.m + FE2.m, FE1.n + FE2.n)
+    FE[1:FE1.m, 1:FE1.n] = FE1
+    FE[FE1.m+1:end, FE1.n+1:end] = FE2
+    V, EV = skel_merge(V1, EV1, V2, EV2)
+    V, EV, FE
 end
 @}
 
