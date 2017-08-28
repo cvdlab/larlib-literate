@@ -4,8 +4,12 @@
 %%%%%%%%%%%%%%%%%%
 \section{Overview}
 @O lib/jl/dimension_travel.jl
-@{include("./utilities.jl")
+@{@< Imports and aliases @>
 @< Dimension travel functions @>
+@}
+
+@D Imports and aliases
+@{include("./utilities.jl")
 @}
 %+++++++++++++%
 \subsection{Tests}
@@ -100,9 +104,9 @@ These last ones are implemented with the \texttt{IntervalTrees.jl} package
 @}
 
 @D Dimension travel functions
-@{function spatial_index(V::Verts, CV::Cells)
-    d = size(V,2)
-    cell_num = size(CV, 1)
+@{function spatial_index(V::Verts, EV::Cells, FE::Cells)
+    d = 3
+    faces_num = size(FE, 1)
     @< Build the d-IntervalTrees @>
     @< Create the mapping @>
     mapping
@@ -117,8 +121,9 @@ In this way we keep in memory the \texttt{boxes1D} array (which contains the int
 @D Build the d-IntervalTrees
 @{IntervalsType = IntervalValue{Float64, Int64}
 boxes1D = Array{IntervalsType, 2}(0, d)
-for ci in 1:cell_num
-    intervals = map((l,u)->IntervalsType(l,u,ci), bbox(V,CV[ci, :])...)
+for fi in 1:faces_num
+    vidxs = (abs(FE[fi:fi,:])*abs(EV))[1,:].nzind
+    intervals = map((l,u)->IntervalsType(l,u,fi), bbox(V[vidxs, :])...)
     boxes1D = vcat(boxes1D, intervals)
 end
 trees = mapslices(IntervalTree{Float64, IntervalsType}, sort(boxes1D, 1), 1)
@@ -140,8 +145,8 @@ Obviously every cell collides with itself, so a set difference is performed for 
 end
 
 mapping = Array{Int64,1}[]
-for ci in 1:cell_num
-    cell_indexes = setdiff(intersect_intervals(boxes1D[ci, :]), [ci])
+for fi in 1:faces_num
+    cell_indexes = setdiff(intersect_intervals(boxes1D[fi, :]), [fi])
     push!(mapping, cell_indexes)
 end
 @}
