@@ -51,17 +51,17 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Submanifold mapping}
 
-This function, given a list of vertices \texttt{V} (in $\mathbb{E}^3$) and a 
-\texttt{face}, returns a $4\times4$ transformation matrix that "flattens"
-\texttt{face} on the $x_3=0$ plane. The matrix is made of the composition of
+This function, given three points (in $\mathbb{E}^3$), 
+returns a $4\times4$ transformation matrix that "flattens"
+plane on which the points lay on the $x_3=0$ plane. 
+The matrix is made of the composition of
 a translation matrix and a coordinate reference change. The translation
-makes the first vertex of \texttt{face} coincident to the origin and
+makes the first point passes coincident to the origin and
 the coordinate reference change is computed by building a reference
-system of the plane on which \texttt{face} lays.
+system of the plane define by the three points.
 
 @D Dimension travel functions
-@{function submanifold_mapping(V, face)
-    p1, p2, p3 = map(i->V[face.nzind[i], :], 1:3)
+@{function submanifold_mapping(p1, p2, p3)
     u1 = p2-p1
     u2 = p3-p1
     u3 = cross(u1, u2)
