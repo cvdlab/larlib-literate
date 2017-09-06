@@ -234,9 +234,9 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Coincident vertices merge}
+\label{sec:2D_merge_vertices}
 %++++++++++++++++++++++++++++%
 \subsection{Support function}
-\label{sec:merge_vertices}
 The merge of coincident is done in the \texttt{merge\_vertices}
 function. This relies on the \texttt{NearestNeighbors.jl} package\cite{NearestNeighbors}
 which provides a reliable implementation of the \texttt{KDTree} data structure.
@@ -250,7 +250,7 @@ which provides a reliable implementation of the \texttt{KDTree} data structure.
     todelete = Array{Int64, 1}()
     @< Iterate over tocheck @>
     @< Delete vertices in todelete @>
-    @< Delete superfluous cells @>
+    @< Delete superfluous edges @>
     V,EV
 end
 @}
@@ -282,22 +282,32 @@ EV = EV[:, tokeep]
 V = V[tokeep, :]
 @}
 At last we delete duplicated, empty and broken edges.
-@D Delete superfluous cells
-@{tokeep = Array{Int64, 1}()
-cells = [Set(EV[i, :].nzind) for i in size(EV,1):-1:1]
-i = 0
-while !isempty(cells)
-    i += 1
-    c = pop!(cells)
-    if !(length(c) != 2 || c in cells)
-        push!(tokeep, i)
+The \texttt{tomerge} variable computation seems an overkill
+now but it is needed in $d=3$ coincident vertices merge.
+(ref. \ref{sec:3D_merge_vertices})
+@D Delete superfluous edges
+@{esnum = size(EV, 1)
+
+tomerge = spzeros(Int64, esnum)
+edges = [Set(EV[i, :].nzind) for i in 1:esnum]
+
+for i in 1:esnum
+    e = edges[i]
+    if length(e) != 2
+        tomerge[i] = -1
+    else
+        pos = findfirst(edges, e)
+        if pos != i
+            tomerge[i] = pos
+        end
     end
 end
-EV = EV[tokeep, :]
+
+EV = EV[setdiff(collect(1:esnum), tomerge.nzind), :]
 @}
 %+++++++++++++++++++++++++%
 \subsection{Implementation}
-We simply call \texttt{merge\_vertices} (ref. \ref{sec:merge_vertices}).
+We simply call \texttt{merge\_vertices}.
 @D Merge coincident vertices
 @{V, EV = merge_vertices(V, EV)
 @}
