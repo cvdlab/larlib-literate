@@ -156,7 +156,7 @@ end
 \section{Face intersection with $z=0$ plane}
 
 The intersection of a polygonal face with the $z=0$ computes
-zero, ono or more edges. To perform the intersection we find the
+zero, one or more edges. To perform the intersection we find the
 intersection point of every edge with the $z=0$ plane and then
 we connect the points.
 
@@ -165,7 +165,8 @@ we connect the points.
 
     vs = buildFV(EV, face)
     retV = Verts(0, 3)
-
+    
+    visited_verts = []
     for i in 1:length(vs)
         o = V[vs[i],:]
         j = i < length(vs) ? i+1 : 1
@@ -173,14 +174,28 @@ we connect the points.
 
         alpha = -o[3] / d[3]
 
-        if 0 < alpha < 1
+        if 0 <= alpha <= 1
             p = o + alpha*d
-            retV = [retV; reshape(p, 1, 3)]
+
+            if alpha == 0 || alpha == 1
+                if !(p in visited_verts)
+                    push!(visited_verts, p)
+                    retV = [retV; reshape(p, 1, 3)] 
+                end
+            else
+                retV = [retV; reshape(p, 1, 3)]
+            end
         end
 
     end
 
     vnum = size(retV, 1)
+
+
+    if vnum == 1
+        vnum = 0
+        retV = Verts(0, 3)
+    end
     enum = Int(vnum / 2)
     retEV = spzeros(Int8, enum, vnum)
 
