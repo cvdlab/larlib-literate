@@ -3,17 +3,22 @@
 
 %%%%%%%%%%%%%%%%%%
 \section{Overview}
+\label{sec:planar_arrangement_overview}
+
 Here we present the planar arrangement algorithm. It takes the 1-skeleton of the $\sigma$ face and returns complex made of 2-cells.
 It fragments every edge in \texttt{EV}. 
 When the fragmentation is done, coincident vertices are merged into one and useless edges are deleted. At last,
 2-cells are build and the result is returned.
+To later perform boolean operation with ease, we build and return also a map from the original
+edges to the new ones.
+
 @O lib/jl/planar_arrangement.jl
 @{@< planar\_arrangement imports@>
 @< planar\_arrangement support functions @>
 
 function planar_arrangement(V::Verts, EV::Cells)
-    @< planar\_arrangement local variables @>
     edgenum = size(EV, 1)
+    @< planar\_arrangement local variables @>
     for i in 1:edgenum
         @< Fragment edge @>
     end
@@ -21,11 +26,18 @@ function planar_arrangement(V::Verts, EV::Cells)
     @< Merge coincident vertices @>
     @< Find maximal biconnected components @>
     @< Filter biconnected components @>
-    @< Create faces @>
 
-    V, EV, FE
+    @< Create faces @>
+    V, EV, FE, edge_map
 end 
 @}
+
+The mapping from old edges to new ones is stored into \texttt{edge\_map}.
+
+@D planar\_arrangement local variables
+@{edge_map = Array{Array{Int, 1}, 1}(edgenum)
+@}
+
 We include the utilities (ref. \ref{ch:utilities}).
 @D planar\_arrangement imports
 @{include("./utilities.jl")
@@ -159,23 +171,37 @@ end
 @}
 %+++++++++++++++++++++++++%
 \subsection{Implementation}
-When we need to fragment an \texttt{edge} we use the \texttt{frag\_edge} function (ref. \ref{sec:frag_edge}) 
+
+When we need to fragment an edge we use the \texttt{frag\_edge} function (ref. \ref{sec:frag_edge}) 
 and we simply update \texttt{V} and push the small \texttt{ev} matrix into a list of cells called \texttt{EVs}.
-We also keep the number of cells into \texttt{finalcells\_num} to build \texttt{EV} with ease.
+While we fragment the edges, we also build a temporary version of \texttt{edge\_map}(ref. \ref{sec:planar_arrangement_overview}). We do this using \texttt{i}
+(the index of the edge that must be fragmented) and the indices of the new edges inside \texttt{ev}
+offset by the \texttt{finalcells\_num} counter, which is updated at every step adding the numbers of
+fragments created per edge; this counter will also be used later to build the complete \texttt{EV} with ease.
+
 @D Fragment edge
 @{V, ev = frag_edge(V, EV, i)
+
+newedges_nums = map(x->x+finalcells_num, collect(1:size(ev, 1)))
+
+edge_map[i] = newedges_nums
+
 finalcells_num += size(ev, 1)
 push!(EVs, ev)
 @}
+
 We declare \texttt{EVs} and \texttt{finalcells\_num} as local variables of \texttt{planar\_arrangement}.
+
 @D planar\_arrangement local variables
 @{EVs = Array{Cells, 1}()
 finalcells_num = 0
 @}
+
 So now we have a \texttt{V} that contains the original points with the points computed with the fragmentation
 and \texttt{EVs}, a list of edges matrices. We must now put the entries of this list together to form an unique
 \texttt{EV} matrix. The process is not immediate because every entry of the list has columns relative to the 
 number of vertices in \texttt{V} at the moment of the computation.
+
 @D Put fragmentation results together
 @{EV = spzeros(Int8, finalcells_num, size(V,1))
 newcell_index = 1
@@ -185,6 +211,7 @@ for ev in EVs
     newcell_index += s[1]
 end
 @}
+
 %++++++++++++++++%
 \subsection{Tests}
 \begin{figure}[h]
@@ -240,17 +267,26 @@ end
 The merge of coincident is done in the \texttt{merge\_vertices}
 function. This relies on the \texttt{NearestNeighbors.jl} package\cite{NearestNeighbors}
 which provides a reliable implementation of the \texttt{KDTree} data structure.
+
 @D planar\_arrangement imports
 @{using NearestNeighbors
 @}
+
+The function is marked with "\texttt{!}" in its signature 
+because it has collateral effects
+on the \texttt{edge\_map} argument; we need this argument because when we
+merge vertices, we will for sure delete some edges and so we have
+to update \texttt{edge\_map} with the new indices.
+
 @D planar\_arrangement support functions
-@{function merge_vertices(V::Verts, EV::Cells, err=1e-4)
+@{function merge_vertices!(V::Verts, EV::Cells, edge_map, err=1e-4)
     kdtree = KDTree(V')
     tocheck = collect(size(V,1):-1:1)
     todelete = Array{Int64, 1}()
     @< Iterate over tocheck @>
     @< Delete vertices in todelete @>
     @< Delete superfluous edges @>
+    @< Update edge mappings @>
     V,EV
 end
 @}
@@ -281,10 +317,12 @@ the data relative to the vertices into \texttt{todelete}.
 EV = EV[:, tokeep]
 V = V[tokeep, :]
 @}
-At last we delete duplicated, empty and broken edges.
+
+We now delete duplicated, empty and broken edges.
 The \texttt{tomerge} variable computation seems an overkill
-now but it is needed in $d=3$ coincident vertices merge.
+now but it is needed just below and in $d=3$ coincident vertices merge.
 (ref. \ref{sec:3D_merge_vertices})
+
 @D Delete superfluous edges
 @{esnum = size(EV, 1)
 
@@ -305,11 +343,33 @@ end
 
 EV = EV[setdiff(collect(1:esnum), tomerge.nzind), :]
 @}
+
+We deleted edges and so the indices of edges are different.
+\texttt{edge\_map} (ref. \ref{sec:planar_arrangement_overview})
+must be updated.
+
+@D Update edge mappings
+@{
+for i in reverse(tomerge.nzind)
+    for row in edge_map
+
+        map!(x->x==i?tomerge[i]:x, row)
+        filter!(x->x!=-1, row)
+
+        for j in 1:length(row)
+            if row[j] > i
+                row[j] -= 1
+            end
+        end
+    end
+end
+@}
+
 %+++++++++++++++++++++++++%
 \subsection{Implementation}
 We simply call \texttt{merge\_vertices}.
 @D Merge coincident vertices
-@{V, EV = merge_vertices(V, EV)
+@{V, EV = merge_vertices!(V, EV, edge_map)
 @}
 %++++++++++++++++%
 \subsection{Tests}
@@ -515,8 +575,13 @@ end
 We also need to delete edges that are not part of a maximal biconnected component
 and then to delete the isolated vertices from both \texttt{V} and \texttt{EV}.
 @D Filter biconnected components
-@{todel = setdiff(collect(1:size(EV,1)), union(bicon_comps...))
-EV = EV[union(bicon_comps...), :]
+@{
+edges = union(bicon_comps...)
+
+
+@< Update edge\_map @>
+
+EV = EV[sort(edges), :]
 
 vertinds = 1:size(EV, 2)
 todel = Array{Int64, 1}()
@@ -529,6 +594,26 @@ tokeep = setdiff(vertinds, todel)
 EV = EV[:, tokeep]
 V = V[tokeep, :]
 @}
+
+@D Update edge\_map
+@{
+todel = sort(setdiff(collect(1:size(EV,1)), edges), rev=true)
+
+for i in todel
+    for row in edge_map
+
+        filter!(x->x!=i, row)
+
+        for j in 1:length(row)
+            if row[j] > i
+                row[j] -= 1
+            end
+        end
+    end
+end
+
+@}
+
 %++++++++++++++++%
 \subsection{Tests}
 The graph built here is the one of figure \ref{img:bicon_comps}.
@@ -573,14 +658,14 @@ end
 %+++++++++++++++++++++++++%
 \subsection{Implementation}
 @D Create faces
-@{bicon_comps = biconnected_components(EV)
+@{#bicon_comps = biconnected_components(EV)
 
 n = size(bicon_comps, 1)
 shells = Array{Cell, 1}(n)
 boundaries = Array{Cells, 1}(n)
 EVs = Array{Cells, 1}(n)
 for p in 1:n
-    ev = EV[bicon_comps[p], :]
+    ev = EV[sort(bicon_comps[p]), :]
     fe = minimal_2cycles(V, ev)
     shell_num = get_external_cycle(V, ev, fe)
 
