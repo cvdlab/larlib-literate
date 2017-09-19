@@ -285,6 +285,33 @@ We resolve this by storing the already visited vertices into the
 end
 @}
 
+%%%%%%%%%%%%%%%%%%%%%%%
+\section{Edge deletion}
+
+Deleting edges ia a common operation in planar arrangement. When
+edges are deleted, some vertices can remain unconnected; these must be deleted too.
+
+@D Utilities
+@{function delete_edges(todel, V::Verts, EV::Cells)
+    tokeep = setdiff(collect(1:EV.m), todel)
+    EV = EV[tokeep, :]
+    
+    vertinds = 1:EV.n
+    todel = Array{Int64, 1}()
+    for i in vertinds
+        if length(EV[:, i].nzind) == 0
+            push!(todel, i)
+        end
+    end
+
+    tokeep = setdiff(vertinds, todel)
+    EV = EV[:, tokeep]
+    V = V[tokeep, :]
+
+    return V, EV
+end
+@}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%
 \section{FV building}
