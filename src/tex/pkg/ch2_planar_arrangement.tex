@@ -5,18 +5,22 @@
 \section{Overview}
 \label{sec:planar_arrangement_overview}
 
-Here we present the planar arrangement algorithm. It takes the 1-skeleton of the $\sigma$ face and returns complex made of 2-cells.
+Here we present the planar arrangement algorithm. It takes the 1-skeleton of a $d=2$ complex and returns 
+the arranged complex made of 2-cells. The user has the possibility to pass a face as argument; when this happen,
+there will not be created faces outside the area of the argument.
+
+The procedure is synthesized here:
 It fragments every edge in \texttt{EV}. 
 When the fragmentation is done, coincident vertices are merged into one and useless edges are deleted. At last,
 2-cells are build and the result is returned.
-To later perform boolean operation with ease, we build and return also a map from the original
+To later perform boolean operation with ease, we also build and return a map from the original
 edges to the new ones.
 
 @O lib/jl/planar_arrangement.jl
 @{@< planar\_arrangement imports@>
 @< planar\_arrangement support functions @>
 
-function planar_arrangement(V::Verts, EV::Cells)
+function planar_arrangement(V::Verts, EV::Cells, sigma::Cell=spzeros(Int8, 0))
     edgenum = size(EV, 1)
     @< planar\_arrangement local variables @>
     for i in 1:edgenum
@@ -24,6 +28,7 @@ function planar_arrangement(V::Verts, EV::Cells)
     end
     @< Put fragmentation results together @>
     @< Merge coincident vertices @>
+    @< Delete edges outside sigma area @>
     @< Find maximal biconnected components @>
     @< Filter biconnected components @>
 
@@ -413,6 +418,34 @@ end
 
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Delete edges outside sigma area}
+
+@D Delete edges outside sigma area
+@{if sigma.n > 0
+    todel = []
+    
+    new_edges = []
+    map(i->new_edges=union(new_edges, edge_map[i]), sigma.nzind)
+    visualize_numbers((V,EV,[]), 2)
+    println(new_edges)
+    ev = EV[new_edges, :]
+
+    for e in 1:EV.m
+        if !(e in new_edges)
+
+            vidxs = EV[e, :].nzind
+            v1, v2 = map(i->V[vidxs[i], :], [1,2])
+            centroid = .5*(v1 + v2)
+            
+            if !point_in_face(centroid, V, ev) 
+                push!(todel, e)
+            end
+        end
+    end
+
+end
+@}
 
 
 
@@ -578,7 +611,7 @@ and then to delete the isolated vertices from both \texttt{V} and \texttt{EV}.
 @{
 edges = union(bicon_comps...)
 
-
+todel = sort(setdiff(collect(1:size(EV,1)), edges), rev=true)
 @< Update edge\_map @>
 
 EV = EV[sort(edges), :]
@@ -596,10 +629,7 @@ V = V[tokeep, :]
 @}
 
 @D Update edge\_map
-@{
-todel = sort(setdiff(collect(1:size(EV,1)), edges), rev=true)
-
-for i in todel
+@{for i in todel
     for row in edge_map
 
         filter!(x->x!=i, row)
@@ -658,7 +688,7 @@ end
 %+++++++++++++++++++++++++%
 \subsection{Implementation}
 @D Create faces
-@{#bicon_comps = biconnected_components(EV)
+@{bicon_comps = biconnected_components(EV)
 
 n = size(bicon_comps, 1)
 shells = Array{Cell, 1}(n)
@@ -803,7 +833,7 @@ To check if a point is really inside a face we use the
                     shell_edge_indexes = shells[j].nzind
                     ev = EVs[j][shell_edge_indexes, :]
 
-                    if !point_in_face(origin, ev)
+                    if !point_in_face(origin, V, ev)
                         graph[i, j] = 0
                     end
                 end

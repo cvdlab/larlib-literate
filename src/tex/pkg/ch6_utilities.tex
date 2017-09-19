@@ -255,7 +255,7 @@ We resolve this by storing the already visited vertices into the
 \texttt{visited\_verts} list.
 
 @D Utilities
-@{function point_in_face(origin, ev::Cells)
+@{function point_in_face(origin, V::Verts, ev::Cells)
     hits = 0
     visited_verts = []
 
