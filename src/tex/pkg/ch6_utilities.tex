@@ -202,6 +202,88 @@ function skel_merge(V1::Verts, EV1::Cells, FE1::Cells, V2::Verts, EV2::Cells, FE
 end
 @}
 
+%%%%%%%%%%%%%%%%%%%%%%
+\section{Point in face area}
+\label{sec:point_in_face}
+
+One correct way to check if a point lays in the area of a general 2D face
+is to shoot a ray from that point with the same direction
+of the positive $x_1$ semi-axis and then count the intersection found
+with the edges of the face.
+
+The math behind this procedure is explained here:
+First of all we parametrize the edge made of the $p_1$ and $p_2$ points:
+
+\begin{equation}
+\label{eq:edge}
+    p = p_1 + \alpha(p_2-p_1), \quad\alpha\in[0, 1]
+\end{equation}
+
+Then we find the value that $\alpha$ assumes when the edge
+intersects the line parallel to the $x_1$ axis that passes through $o$,
+the point of which we need to check the inclusion inside the face:
+
+\begin{gather*}
+    \begin{bmatrix}
+        o_x \\ o_y
+    \end{bmatrix}
+    = 
+    \begin{bmatrix}
+        p_{1x} \\ p_{1y}
+    \end{bmatrix}
+    +
+    \alpha
+    \begin{bmatrix}
+        p_{2x} - p_{1x} \\ p_{2y} - p_{1y}
+    \end{bmatrix} \\
+    o_y = p_{1y} + \alpha(p_{2y} - p_{1y}) \\
+    \alpha = \frac{o_y - p_{1y}}{p_{2y} - p_{1y}}
+\end{gather*}
+
+If $\alpha\in[0, 1]$ then the edge intersect the line, and we find the point
+of intersection by putting $\alpha$ into equation \ref{eq:edge}.
+The intersection must be count only if the freshly computed point
+is on the right of $o$.
+
+In the implementation, additional care is needed when the ray encounters a vertex
+(or, mathematically speaking, when $\alpha\in\{0, 1\}$):
+we are testing the intersections of the ray with edges, and every
+vertex is shared by two or more edges. So we cannot simply increase the 
+\texttt{hits} counter every time we encounter a vertex because this will lead
+to miscalculations when an even number of edges share the same vertex.
+We resolve this by storing the already visited vertices into the 
+\texttt{visited\_verts} list.
+
+@D Utilities
+@{function point_in_face(origin, ev::Cells)
+    hits = 0
+    visited_verts = []
+
+    for edge in 1:ev.m
+        a_id, b_id = ev[edge, :].nzind
+        a = V[a_id, :]
+        b = V[b_id, :]
+        v = b - a
+        alpha = (origin[2] - a[2]) / v[2]
+        if 0 <= alpha <= 1
+            x_int = a[1] + v[1]*alpha
+            if x_int > origin[1]
+                if 0 <= alpha <= 1
+                    hits += 1
+                else
+                    p = (alpha == 0) ? a : b
+                    if !(p in visited_verts)
+                        hits += 1
+                        push!(visited_verts, p)
+                    end
+                end
+            end
+        end
+    end
+
+    return hits % 2 == 1
+end
+@}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%

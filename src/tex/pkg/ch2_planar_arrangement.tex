@@ -786,7 +786,8 @@ containment_graph = prune_containment_graph(n, V, EVs, shells, containment_graph
 end
 @}
 
-The ray logic is explained just below the next macro.
+To check if a point is really inside a face we use the
+\texttt{point\_in\_face} utility (ref. \ref{sec:point_in_face})
 
 @D planar\_arrangement support functions
 @{function prune_containment_graph(n, V, EVs, shells, graph)
@@ -799,9 +800,10 @@ The ray logic is explained just below the next macro.
         for j in 1:n
             if i != j
                 if graph[i, j] == 1
-                    contains = false
-                    @< Shoot ray @>
-                    if !contains
+                    shell_edge_indexes = shells[j].nzind
+                    ev = EVs[j][shell_edge_indexes, :]
+
+                    if !point_in_face(origin, ev)
                         graph[i, j] = 0
                     end
                 end
@@ -812,81 +814,6 @@ The ray logic is explained just below the next macro.
      return graph
 end
 @}
-
-We shoot a ray from the vertex $o$ with the same direction
-of the positive $x_1$ semi-axis.
-When we want to find the intersection of the ray with an edge,
-we parametrize it:
-
-\begin{equation}
-\label{eq:edge}
-    p = p_1 + \alpha(p_2-p_1), \quad\alpha\in[0, 1]
-\end{equation}
-
-Then we find the value that $\alpha$ assumes when the edge
-intersects the line parallel to the $x_1$ axis that passes through $o$:
-
-\begin{gather*}
-    \begin{bmatrix}
-        o_x \\ o_y
-    \end{bmatrix}
-    = 
-    \begin{bmatrix}
-        p_{1x} \\ p_{1y}
-    \end{bmatrix}
-    +
-    \alpha
-    \begin{bmatrix}
-        p_{2x} - p_{1x} \\ p_{2y} - p_{1y}
-    \end{bmatrix} \\
-    o_y = p_{1y} + \alpha(p_{2y} - p_{1y}) \\
-    \alpha = \frac{o_y - p_{1y}}{p_{2y} - p_{1y}}
-\end{gather*}
-
-If $\alpha\in[0, 1]$ then the edge intersect the line, and we find the point
-of intersection by putting $\alpha$ into equation \ref{eq:edge}.
-The intersection must be count only if the freshly computed point
-is on the right of the vertex $o$.
-
-The case when the ray encounters a vertex requires additional care:
-we are testing the intersections of the ray with edges, and every
-vertex is shared by two or more edges. So we cannot simply increase the 
-\texttt{hits} counter every time we encounter a vertex because this will lead
-to miscalculations when an even number of edges share the same vertex.
-We resolve this by storing the already visited vertices into the 
-\texttt{visited\_verts} list.
-
-@D Shoot ray
-@{hits = 0
-visited_verts = []
-shell_edge_indexes = shells[j].nzind
-ev = EVs[j][shell_edge_indexes, :]
-
-for edge in 1:ev.m
-    a_id, b_id = ev[edge, :].nzind
-    a = V[a_id, :]
-    b = V[b_id, :]
-    v = b - a
-    alpha = (origin[2] - a[2]) / v[2]
-    if 0 <= alpha <= 1
-        x_int = a[1] + v[1]*alpha
-        if x_int > origin[1]
-            if 0 <= alpha <= 1
-                hits += 1
-            else
-                p = (alpha == 0) ? a : b
-                if !(p in visited_verts)
-                    hits += 1
-                    push!(visited_verts, p)
-                end
-            end
-        end
-    end
-end
-
-contains = hits % 2 == 1
-@}
-
 
 %+++++++++++++++++++++++++++++++%
 \subsection{Transitive reduction}
