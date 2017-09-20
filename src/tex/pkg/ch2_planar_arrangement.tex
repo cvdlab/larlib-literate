@@ -421,6 +421,13 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Delete edges outside sigma area}
 
+If the user specified a sigma face as input of the planar arrangement,
+we need to delete the edges outside the area of the sigma face. 
+First, we use \texttt{edge\_map} to get the fragments of the edges of the original sigma;
+then for every edge which is not a fragment of sigma's edges, we check if its centroid
+is inside sigma using the \texttt{point\_in\_face} utility (ref. \ref{sec:point_in_face}).
+Finally, once we have marked the edges to delete, we delete them (ref. \ref{sec:delete_edges}) and update the \texttt{edge\_map}.
+
 @D Delete edges outside sigma area
 @{if sigma.n > 0
     todel = []
@@ -448,6 +455,26 @@ end
 end
 @}
 
+\label{macro:update_edge_map}
+For every deleted edge the \texttt{edge\_map} must be updated. 
+So we delete the index of the edge from the mapping and subtract one 
+to the indices greater than the index of the deleted edge.
+
+
+@D Update edge\_map
+@{for i in reverse(todel)
+    for row in edge_map
+
+        filter!(x->x!=i, row)
+
+        for j in 1:length(row)
+            if row[j] > i
+                row[j] -= 1
+            end
+        end
+    end
+end
+@}
 
 
 
@@ -606,8 +633,12 @@ if isempty(bicon_comps)
     return
 end
 @}
+
 We also need to delete edges that are not part of a maximal biconnected component
 and then to delete the isolated vertices from both \texttt{V} and \texttt{EV}.
+We also update the \texttt{edge\_map} to adapt it to the deletions made (We use the
+macro defined in \ref{macro:update_edge_map}).
+
 @D Filter biconnected components
 @{
 edges = sort(union(bicon_comps...))
@@ -616,22 +647,6 @@ todel = sort(setdiff(collect(1:size(EV,1)), edges))
 @< Update edge\_map @>
 
 V, EV = delete_edges(todel, V, EV)
-
-@}
-
-@D Update edge\_map
-@{for i in reverse(todel)
-    for row in edge_map
-
-        filter!(x->x!=i, row)
-
-        for j in 1:length(row)
-            if row[j] > i
-                row[j] -= 1
-            end
-        end
-    end
-end
 
 @}
 
