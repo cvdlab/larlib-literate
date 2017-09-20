@@ -268,7 +268,7 @@ We resolve this by storing the already visited vertices into the
         if 0 <= alpha <= 1
             x_int = a[1] + v[1]*alpha
             if x_int > origin[1]
-                if 0 <= alpha <= 1
+                if 0 < alpha < 1
                     hits += 1
                 else
                     p = (alpha == 0) ? a : b

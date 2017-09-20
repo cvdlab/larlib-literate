@@ -427,8 +427,6 @@ end
     
     new_edges = []
     map(i->new_edges=union(new_edges, edge_map[i]), sigma.nzind)
-    visualize_numbers((V,EV,[]), 2)
-    println(new_edges)
     ev = EV[new_edges, :]
 
     for e in 1:EV.m
