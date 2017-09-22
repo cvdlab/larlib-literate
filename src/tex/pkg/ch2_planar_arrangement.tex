@@ -286,87 +286,57 @@ to update \texttt{edge\_map} with the new indices.
 @D planar\_arrangement support functions
 @{function merge_vertices!(V::Verts, EV::Cells, edge_map, err=1e-4)
     kdtree = KDTree(V')
-    tocheck = collect(size(V,1):-1:1)
-    todelete = Array{Int64, 1}()
-    @< Iterate over tocheck @>
-    @< Delete vertices in todelete @>
-    @< Delete superfluous edges @>
-    @< Update edge mappings @>
-    V,EV
-end
-@}
-We create two stacks: \texttt{tocheck} which contains the indices of the vertices
-to check and \texttt{todelete} that stores the indices of the vertices to delete later.
-Into \texttt{tocheck} we put all the vertices of the complex in reverse order (in
-this way we can pop from the stack the indices in crescent order). So, until \texttt{tocheck} is not empty,
-we pop a vertex \texttt{vi} from the stack and for each coincident vertex \texttt{vj}, we put it 
-into the \texttt{todelete} stack and we sum the columns of \texttt{EV} relative to \texttt{vi} and \texttt{vj}
-@D Iterate over tocheck 
-@{while !isempty(tocheck)
-    vi = pop!(tocheck)
-    if !(vi in todelete)
-        nearvs = inrange(kdtree, V[vi, :], err)
-        for vj in nearvs
-            if vj != vi
-                push!(todelete, vj)
-                EV[:,vi] = EV[:, vi] + EV[:, vj]
-            end
+    vertsnum = size(V, 1)
+    newverts = zeros(vertsnum)
+    todelete = []
+
+    i = 1
+    for vi in 1:vertsnum
+        if !(vi in todelete)
+            nearvs = inrange(kdtree, V[vi, :], err)
+
+            newverts[nearvs] = i
+
+            nearvs = setdiff(nearvs, vi)
+            todelete = union(todelete, nearvs)
+
+            i = i + 1
         end
     end
-end
-@}
-We then calculate the vertices to keep and we filter out
-the data relative to the vertices into \texttt{todelete}.
-@D Delete vertices in todelete
-@{tokeep = setdiff(collect(1:size(V,1)), todelete)
-EV = EV[:, tokeep]
-V = V[tokeep, :]
-@}
 
-We now delete duplicated, empty and broken edges.
-The \texttt{tomerge} variable computation seems an overkill
-now but it is needed just below and in $d=3$ coincident vertices merge.
-(ref. \ref{sec:3D_merge_vertices})
+    edgenum = size(EV, 1)
+    edges = Array{Tuple{Int, Int}, 1}(edgenum)
 
-@D Delete superfluous edges
-@{esnum = size(EV, 1)
+    for ei in 1:edgenum
+        v1, v2 = EV[ei, :].nzind
+        
+        edges[ei] = (newverts[v1], newverts[v2])
 
-tomerge = spzeros(Int64, esnum)
-edges = [Set(EV[i, :].nzind) for i in 1:esnum]
-
-for i in 1:esnum
-    e = edges[i]
-    if length(e) != 2
-        tomerge[i] = -1
-    else
-        pos = findfirst(edges, e)
-        if pos != i
-            tomerge[i] = pos
-        end
     end
-end
+    nedges = union(edges)
+    nedges = filter(t->t[1]!=t[2], nedges)
 
-EV = EV[setdiff(collect(1:esnum), tomerge.nzind), :]
-@}
+    nV = V[setdiff(collect(1:vertsnum), todelete), :]
 
-We deleted edges and so the indices of edges are different.
-\texttt{edge\_map} (ref. \ref{sec:planar_arrangement_overview})
-must be updated.
+    nedgenum = length(nedges)
+    nEV = spzeros(Int8, nedgenum, size(nV, 1))
 
-@D Update edge mappings
-@{
-for i in reverse(tomerge.nzind)
-    for row in edge_map
+    etuple2idx = Dict{Tuple{Int, Int}, Int}()
 
-        map!(x->x==i?tomerge[i]:x, row)
-        filter!(x->x!=-1, row)
-
-        for j in 1:length(row)
-            if row[j] > i
-                row[j] -= 1
-            end
-        end
+    for ei in 1:nedgenum
+        nEV[ei, collect(nedges[ei])] = 1
+        etuple2idx[nedges[ei]] = ei
     end
+
+    for i in 1:length(edge_map)
+        row = edge_map[i]
+        row = map(x->edges[x], row)
+        row = filter(t->t[1]!=t[2], row)
+        row = map(x->etuple2idx[x], row)
+        edge_map[i] = row
+    end
+
+    return nV, nEV
 end
 @}
 
