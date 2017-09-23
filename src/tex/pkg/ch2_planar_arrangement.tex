@@ -298,6 +298,11 @@ to update \texttt{edge\_map} with the new indices.
 end
 @}
 
+First we identify the vertices to delete and we store a map
+from original vertices to new vertices. In the meanwhile
+we keep a list to vertices to delete and we delete them 
+immediately.
+
 @D Find coincident vertices
 @{todelete = []
 
@@ -317,6 +322,19 @@ end
 
 nV = V[setdiff(collect(1:vertsnum), todelete), :]
 @}
+
+To delete the edges we write them as couples of vertex
+indices. We keep them in two versions: in \texttt{edges}
+we put the edges described with the indexes of the new vertices
+and in \texttt{oedges} we put the edges relative to the original vertex
+indices (we will use them in the $\langle$ Merge faces $\rangle$ 
+macro in \ref{sec:3D_merge_vertices}). Once we "translated"
+the edges, we delete the duplicates (using a set union) and the
+degenerated edges. Lastly we build a new EV matrix 
+(called \texttt{nEV}). While we
+build the matrix, we also build a dictionary which maps edges expressed
+as couples of vertex indices into edge indices relative to \texttt{nEV};
+this will be used in the macro just below.
 
 @D Merge edges
 @{edges = Array{Tuple{Int, Int}, 1}(edgenum)
@@ -342,6 +360,10 @@ for ei in 1:nedgenum
     etuple2idx[nedges[ei]] = ei
 end
 @}
+
+The last step is to update \texttt{edge\_map}.
+We update the indices using the data structures
+built above while deleting the duplicated edges.
 
 @D Update edge\_map after vertex merging
 @{for i in 1:length(edge_map)
