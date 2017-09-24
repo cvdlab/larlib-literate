@@ -1,6 +1,18 @@
 \chapter{Planar Arrangement}
 \label{ch:planar_arrangement}
 
+\begin{figure}[h]
+    \centering
+    \includegraphics{./img/ch2-planararrangement.pdf}
+    \caption{
+        The steps of the planar arrangement algorithm.
+        A bunch of edges and a sigma face (in blue) are passed as input (a), the edges
+        are fragmented (b) and then the edges either outside the sigma face area or which
+        cannot build correctly a face are deleted (c). At last, faces (numbered in red) 
+        are created (d).
+    }
+\end{figure}
+
 %%%%%%%%%%%%%%%%%%
 \section{Overview}
 \label{sec:planar_arrangement_overview}
@@ -23,16 +35,18 @@ edges to the new ones.
 function planar_arrangement(V::Verts, EV::Cells, sigma::Cell=spzeros(Int8, 0))
     edgenum = size(EV, 1)
     @< planar\_arrangement local variables @>
+
     for i in 1:edgenum
         @< Fragment edge @>
     end
     @< Put fragmentation results together @>
+
     @< Merge coincident vertices @>
     @< Delete edges outside sigma area @>
     @< Find maximal biconnected components @>
     @< Filter biconnected components @>
-
     @< Create faces @>
+    
     V, EV, FE, edge_map
 end 
 @}
