@@ -178,7 +178,7 @@ built-in function to calculate the angle of the edge from the vertex point of vi
     end
 
     for i in 1:ev.m
-        j = ev[i,:].nzind[1]
+        j = min(ev[i,:].nzind...)
         ev[i, j] = -1
     end
     VE = ev'
@@ -191,4 +191,20 @@ end
 
 \subsection{$d=3$}
 
-TODO
+\textbf{THIS IS A WORK IN PROGRESS. DO NOT USE.}\\ \\
+Here we have edges for ($d-2$)-cells and faces for ($d-1$)-cells.
+
+@D Minimal cycles implementations
+@{function minimal_3cycles(V::Verts, EV::Cells, FE::Cells)
+
+    function face_angle(V::Verts, e::Int, face::Cell)
+        
+    end
+
+    EF = ef'
+
+    FC = minimal_cycles(face_angle)(V, EF)
+
+    return FC'
+end
+@}
