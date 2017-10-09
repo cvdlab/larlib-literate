@@ -124,7 +124,7 @@ this function is the only difference between the $d=3$ and $d=2$ version of
 @D minimal\_cycles utilities
 @{
 for lld in 1:lld_cellsnum
-    as = [(ld, angles_fn(V, lld, ld_bounds[:, ld])) 
+    as = [(ld, angles_fn(lld, ld)) 
         for ld in ld_bounds[lld, :].nzind]
     sort!(as, lt=(a,b)->a[2]<b[2])
     as = map(a->a[1], as)
@@ -162,6 +162,7 @@ end
 \section{Dimensional wise implementations}
 \label{sec:angles_fn}
 
+%%%%%%%%%%%%%%%%%%
 \subsection{$d=2$}
 
 When in $d=2$, ($d-2$)-cells are vertices and ($d-1$)-cells are edges.
@@ -171,7 +172,8 @@ built-in function to calculate the angle of the edge from the vertex point of vi
 @D Minimal cycles implementations
 @{function minimal_2cycles(V::Verts, ev::Cells)
 
-    function edge_angle(V::Verts, v::Int, edge::Cell)
+    function edge_angle(v::Int, e::Int)
+        edge = ev[e, :]
         v2 = setdiff(edge.nzind, [v])[1]
         x, y = V[v2, :] - V[v, :]
         return atan2(y, x)
@@ -189,6 +191,8 @@ built-in function to calculate the angle of the edge from the vertex point of vi
 end
 @}
 
+
+%%%%%%%%%%%%%%%%%%
 \subsection{$d=3$}
 
 \textbf{THIS IS A WORK IN PROGRESS. DO NOT USE.}\\ \\
@@ -197,7 +201,7 @@ Here we have edges for ($d-2$)-cells and faces for ($d-1$)-cells.
 @D Minimal cycles implementations
 @{function minimal_3cycles(V::Verts, EV::Cells, FE::Cells)
 
-    function face_angle(V::Verts, e::Int, face::Cell)
+    function face_angle(e::Int, f::Int)
         
     end
 
