@@ -17,6 +17,7 @@ behavior, the algorithm has been implemented as an high-order function\footnote{
 
 @O lib/jl/minimal_cycles.jl
 @{include("./utilities.jl")
+using TRIANGLE
 
 @< Minimal cycles implementations @>
 
@@ -170,20 +171,20 @@ The \texttt{edge\_angle} function uses the Julia's \texttt{atan2}
 built-in function to calculate the angle of the edge from the vertex point of view.
 
 @D Minimal cycles implementations
-@{function minimal_2cycles(V::Verts, ev::Cells)
+@{function minimal_2cycles(V::Verts, EV::Cells)
 
     function edge_angle(v::Int, e::Int)
-        edge = ev[e, :]
+        edge = EV[e, :]
         v2 = setdiff(edge.nzind, [v])[1]
         x, y = V[v2, :] - V[v, :]
         return atan2(y, x)
     end
 
-    for i in 1:ev.m
-        j = min(ev[i,:].nzind...)
-        ev[i, j] = -1
+    for i in 1:EV.m
+        j = min(EV[i,:].nzind...)
+        EV[i, j] = -1
     end
-    VE = ev'
+    VE = EV'
 
     EF = minimal_cycles(edge_angle)(V, VE)
 
@@ -198,14 +199,80 @@ end
 \textbf{THIS IS A WORK IN PROGRESS. DO NOT USE.}\\ \\
 Here we have edges for ($d-2$)-cells and faces for ($d-1$)-cells.
 
+
+
 @D Minimal cycles implementations
 @{function minimal_3cycles(V::Verts, EV::Cells, FE::Cells)
 
+    triangulated_faces = Array{Any, 1}(FE.m)
+
     function face_angle(e::Int, f::Int)
-        
+        if !isdefined(triangulated_faces, f)
+            vs_idxs = Array{Int64, 1}()
+            edges_idxs = FE[f, :].nzind
+            edge_num = length(edges_idxs)
+            edges = zeros(Int64, edge_num, 2)
+
+            for (i, e) in enumerate(edges_idxs)
+                edge = EV[e, :].nzind
+                edges[i, :] = edge
+                vs_idxs = union(vs_idxs, edge)
+            end
+            
+            vs = V[vs_idxs, :]
+
+            v1 = normalize(vs[2, :] - vs[1, :])
+            v2 = normalize(vs[3, :] - vs[1, :])
+            v3 = cross(v1, v2)
+
+            M = reshape([v1; v2; v3], 3, 3)
+
+            vs = vs*M
+
+            triangulated_faces[f] = TRIANGLE.constrained_triangulation(vs, vs_idxs, edges, fill(true, edge_num))
+        end
+
+        edge_vs = EV[e, :].nzind
+
+        t = findfirst(x->edge_vs[1] in x && edge_vs[2] in x, triangulated_faces[f])
+
+        # Indexes of the vertices of the triangle
+        triangle = triangulated_faces[f][t]
+
+        # Get normalized vector of hinge
+        v1 = normalize(V[edge_vs[2], :] - V[edge_vs[1], :])
+
+        # Build frame
+        if abs(v1[1]) > abs(v1[2])
+            invlen = 1. / sqrt(v1[1]*v1[1] + v1[3]*v1[3])
+            v2 = [-v1[3]*invlen, 0, v1[1]*invlen]
+        else
+            invlen = 1. / sqrt(v1[2]*v1[2] + v1[3]*v1[3])
+            v2 = [0, -v1[3]*invlen, v1[2]*invlen]
+        end
+        v3 = cross(v1, v2)
+
+        # Build transformation matrix
+        M = reshape([v1; v2; v3], 3, 3)
+
+        # Transform
+        third_v = setdiff(triangle, edge_vs)[1]
+        vs = V[[edge_vs..., third_v], :]*M
+
+        # return atan2 of 3rd with 1st
+        v = vs[3, :] - vs[1, :]
+
+        #println("### face_angle(e:", e,", f:", f,") = ", atan2(v[2], v[3]))
+
+        #v1 = normalize(vs[2, :] - vs[1, :])
+        #v2 = normalize(vs[3, :] - vs[1, :])
+        #n = cross(v1, v2)
+        #return atan2(n[2], n[3])
+
+        return atan2(v[2], v[3])
     end
 
-    EF = ef'
+    EF = FE'
 
     FC = minimal_cycles(face_angle)(V, EF)
 
