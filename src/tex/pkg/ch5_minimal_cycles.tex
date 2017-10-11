@@ -125,8 +125,10 @@ this function is the only difference between the $d=3$ and $d=2$ version of
 @D minimal\_cycles utilities
 @{
 for lld in 1:lld_cellsnum
-    as = [(ld, angles_fn(lld, ld)) 
-        for ld in ld_bounds[lld, :].nzind]
+    as = []
+    for ld in ld_bounds[lld, :].nzind
+        push!(as, (ld, angles_fn(lld, ld)))
+    end
     sort!(as, lt=(a,b)->a[2]<b[2])
     as = map(a->a[1], as)
     angles[lld] = as
@@ -213,8 +215,8 @@ Here we have edges for ($d-2$)-cells and faces for ($d-1$)-cells.
             edge_num = length(edges_idxs)
             edges = zeros(Int64, edge_num, 2)
 
-            for (i, e) in enumerate(edges_idxs)
-                edge = EV[e, :].nzind
+            for (i, ee) in enumerate(edges_idxs)
+                edge = EV[ee, :].nzind
                 edges[i, :] = edge
                 vs_idxs = union(vs_idxs, edge)
             end
@@ -262,20 +264,15 @@ Here we have edges for ($d-2$)-cells and faces for ($d-1$)-cells.
         # return atan2 of 3rd with 1st
         v = vs[3, :] - vs[1, :]
 
-        #println("### face_angle(e:", e,", f:", f,") = ", atan2(v[2], v[3]))
+        angle = atan2(v[2], v[3]) 
 
-        #v1 = normalize(vs[2, :] - vs[1, :])
-        #v2 = normalize(vs[3, :] - vs[1, :])
-        #n = cross(v1, v2)
-        #return atan2(n[2], n[3])
-
-        return atan2(v[2], v[3])
+        return angle
     end
 
     EF = FE'
 
     FC = minimal_cycles(face_angle)(V, EF)
 
-    return FC'
+    return -FC'
 end
 @}
