@@ -45,7 +45,7 @@ function planar_arrangement(V::Verts, EV::Cells, sigma::Cell=spzeros(Int8, 0))
     @< Delete edges outside sigma area @>
     @< Find maximal biconnected components @>
     @< Filter biconnected components @>
-    @< Create faces @>
+    @< Create faces @>  
     
     V, EV, FE, edge_map
 end 
@@ -145,8 +145,10 @@ point and a parameter that is useful for sorting the fragmentation points of an 
     denom = (y4-y3)*(x2-x1) - (x4-x3)*(y2-y1)
     a = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / denom
     b = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / denom
-    
-    if 0 <= a <= 1 && 0 <= b <= 1
+
+    err = 10e-8
+
+    if -err < a < 1+err && -err <= b <= 1+err
         p = [(x1 + a*(x2-x1))  (y1 + a*(y2-y1))]
         push!(ret, (p, a))
     elseif isnan(a) && isnan(b) 
