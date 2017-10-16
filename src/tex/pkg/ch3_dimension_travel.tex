@@ -177,11 +177,11 @@ we connect the points.
 
             alpha = -o[3] / d[3]
 
-            if 0 <= alpha <= 1
+            if -err <= alpha <= 1+err
                 p = o + alpha*d
 
-                if alpha == 0 || alpha == 1
-                    if !(p in visited_verts)
+                if -err < alpha < err || 1-err < alpha < 1+err
+                    if !(vin(p, visited_verts))
                         push!(visited_verts, p)
                         retV = [retV; reshape(p, 1, 3)] 
                     end
