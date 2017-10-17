@@ -32,7 +32,7 @@ edges to the new ones.
 @{@< planar\_arrangement imports@>
 @< planar\_arrangement support functions @>
 
-function planar_arrangement(V::Verts, EV::Cells, sigma::Cell=spzeros(Int8, 0), DEBUG=false)
+function planar_arrangement(V::Verts, EV::Cells, sigma::Cell=spzeros(Int8, 0))
     edgenum = size(EV, 1)
     @< planar\_arrangement local variables @>
 
@@ -42,24 +42,11 @@ function planar_arrangement(V::Verts, EV::Cells, sigma::Cell=spzeros(Int8, 0), D
     @< Put fragmentation results together @>
 
     @< Merge coincident vertices @>
-    if DEBUG
-        visualize_numbers((V,EV,[]), .6)
-    end
     @< Delete edges outside sigma area @>
-    if DEBUG
-        visualize_numbers((V,EV,[]), .6)
-    end
     @< Find maximal biconnected components @>
     @< Filter biconnected components @>
-    if DEBUG
-        visualize_numbers((V,EV,[]), .6)
-    end
     @< Create faces @>  
 
-    if DEBUG
-        visualize_numbers((V,EV,FE), .6)
-    end
-    
     V, EV, FE, edge_map
 end 
 @}
@@ -117,7 +104,6 @@ a new \texttt{EV} is computed.
     edge = EV[edgenum, :]
     for i in 1:size(EV, 1)
         if i != edgenum
-            #print(edgenum, " in ", i, "\t")
             intersection = intersect_edges(V, edge, EV[i, :])
             for (point, alpha) in intersection
                 V = [V; point]
@@ -160,25 +146,13 @@ point and a parameter that is useful for sorting the fragmentation points of an 
     ret = Array{Tuple{Verts, Float64}, 1}()
 
     v1 = [x2-x1, y2-y1];
-    v2 = [x4-x3, y4-y3]; 
+    v2 = [x4-x3, y4-y3];
     v3 = [x3-x1, y3-y1];
 
     ang1 = dot(normalize(v1), normalize(v2))
     ang2 = dot(normalize(v1), normalize(v3))
 
-    colinear = 1-err < abs(ang1) < 1+err && 1-err < abs(ang2) < 1+err
-
-
-    #print(normalize(v1), "*", normalize(v2), "=", angle, "; test=", (v3[1]*v1[1] - v3[2]*v1[2]), " v3=", v3, " ANGLE=", ang2, " ")
-
-    #=
-    if (1-err < angle < 1+err || -1-err < angle < -1+err) && -err < (v3[1]*v1[1] - v3[2]*v1[2]) < err
-        #println("SAME: ", normalize(v1), " ", normalize(v2))
-        #return ret
-    else
-        #println("NOT")
-    end
-    =#
+    colinear = 1-err < abs(ang1) < 1+err && (1-err < abs(ang2) < 1+err || -err < norm(v3) < err )
 
     if colinear
         @< Handle colinear edges @>
@@ -192,7 +166,7 @@ point and a parameter that is useful for sorting the fragmentation points of an 
             push!(ret, (p, a)) 
         end
     end
-    #println(ret)
+
     return ret
 end
 @}
@@ -504,14 +478,9 @@ Finally, once we have marked the edges to delete, we delete them (ref. \ref{sec:
             v1, v2 = map(i->V[vidxs[i], :], [1,2])
             centroid = .5*(v1 + v2)
             
-            #if e == 9
-
-            println(e, ": ", point_in_face(centroid, V, ev), "; edge_vs=", EV[e, :].nzind)
-            
             if !point_in_face(centroid, V, ev) 
                 push!(todel, e)
             end
-            println("todel: ", todel)
         end
     end
 

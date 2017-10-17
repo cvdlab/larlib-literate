@@ -1,7 +1,5 @@
 \chapter{Spatial Arrangement}
 
-\textbf{THIS IS A WORK IN PROGRESS. DO NOT USE.}
-
 %%%%%%%%%%%%%%%%%%
 \section{Overview}
 Here we present the spatial arrangement algorithm. 
@@ -15,16 +13,11 @@ function spatial_arrangement(V::Verts, EV::Cells, FE::Cells)
     es_num = size(EV, 1)
     fs_num = size(FE, 1)
 
-    #Mnorm, Minorm = normalizer(V)
-    #V = ([V ones(vs_num)]*Mnorm)[:, 1:3]
-    
     sp_idx = spatial_index(V, EV, FE)
 
     rV = Verts(0,3)
     rEV = spzeros(Int8,0,0)
     rFE = spzeros(Int8,0,0)
-
-    face = nothing
 
     for sigma in 1:fs_num
         sigmavs = (abs(FE[sigma:sigma,:])*abs(EV))[1,:].nzind 
@@ -33,18 +26,7 @@ function spatial_arrangement(V::Verts, EV::Cells, FE::Cells)
 
         @< Sigma flattening @>
 
-        if sigma == 42
-            visualize_numbers((sV, sEV, []), .6)
-            face = sV, sEV, sparsevec(ones(Int8, length(sigmavs)))
-            #return face
-        end
-
-        println("SIGMA: ", sigma)
-        nV, nEV, nFE = planar_arrangement(sV, sEV, sparsevec(ones(Int8, length(sigmavs))), sigma==42)
-
-        if sigma == 42
-            visualize_numbers((nV, nEV, nFE), .6)
-        end
+        nV, nEV, nFE = planar_arrangement(sV, sEV, sparsevec(ones(Int8, length(sigmavs))))
 
         nvsize = size(nV, 1)
         nV = [nV zeros(nvsize) ones(nvsize)]*inv(M)[:, 1:3]
@@ -52,23 +34,10 @@ function spatial_arrangement(V::Verts, EV::Cells, FE::Cells)
         rV, rEV, rFE = skel_merge(rV, rEV, rFE, nV, nEV, nFE)
     end
 
-    premerge = (rV, rEV, rFE)
-
     rV, rEV, rFE = merge_vertices(rV, rEV, rFE)
 
-    postmerge = (rV, rEV, rFE)
-    
-    visualize_numbers((rV, rEV, rFE), .3)
+    rCF = minimal_3cycles(rV, rEV, rFE)
 
-    rCF = []
-    try
-        rCF = minimal_3cycles(rV, rEV, rFE)
-    catch
-        println("ERROR")
-        return postmerge
-    end
-
-    #rV = ([rV ones(size(rV, 1))]*Minorm)[:, 1:3]
     return rV, rEV, rFE, rCF
 end
 
