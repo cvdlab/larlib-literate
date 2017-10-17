@@ -50,6 +50,7 @@ d_bounds = spzeros(Int8, ld_cellsnum, 0)
 @< minimal\_cycles utilities @>
 
 while (sigma = get_seed_cell()) > 0
+    println("sigma: ", sigma)
     @< Compute a cycle @>
 end
 
@@ -100,6 +101,12 @@ while c_lld.nzind != []
             corolla[adj] *= -1
         end
     end
+    #=
+    if sigma == 1
+        println(c_ld)
+        readline(STDIN)
+    end
+    =#
     c_ld += corolla
     c_lld = ld_bounds*c_ld
 end
