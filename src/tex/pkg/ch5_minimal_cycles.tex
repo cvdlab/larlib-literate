@@ -5,7 +5,10 @@
 
 
 Computing the minimal cycles means to compute the $d$-boundary matrix
-from the $(d-1)$-boundary. This function works for both $d=2$ and $d=3$;
+from the $(d-1)$-boundary. The method has been profusely illustrated
+by A. Paoluzzi et al. in \textit{Arrangements of cellular complexes}
+\cite{Paoluzzi}.
+The method is dimension-independent, so works for both $d=2$ and $d=3$;
 the only difference between the two cases lays in the \texttt{angles\_fn}
 function (ref. \ref{sec:angles_fn}). To support this multidimensional
 behavior, the algorithm has been implemented as an high-order function\footnote{
@@ -77,8 +80,7 @@ end
 
 The bigger part of the algorithm is the computation
 of a single cycle. It is mostly equivalent to the
-\textbf{ALGORITHM 1} presented by A. Paoluzzi et al.
-in \textit{Arrangements of cellular complexes}
+\textbf{ALGORITHM 1} of A. Paoluzzi et al.
 \cite{Paoluzzi}
 
 @D Compute a cycle
@@ -108,7 +110,7 @@ map(s->dir_marks[s] = c_ld[s], c_ld.nzind)
 d_bounds = [d_bounds c_ld]
 @}
 
-As profusely explained by A. Paoluzzi et al. \cite{Paoluzzi}, this algorithm
+This algorithm
 revolves around the \textit{next} and \textit{prev} functions. To speed up their
 computation, before the cycles iteration starts, we calculate and
 store for each ($d-2$)-cell the angles that its incident ($d-1$)-cells

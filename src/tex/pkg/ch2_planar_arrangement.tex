@@ -18,13 +18,12 @@
 \label{sec:planar_arrangement_overview}
 
 Here we present the planar arrangement algorithm. It takes the 1-skeleton of a $d=2$ complex and returns 
-the arranged complex made of 2-cells. The user has the possibility to pass a face as argument; when this happen,
-there will not be created faces outside the area of the argument.
+the arranged complex made of 2-cells. It is possible to pass a \texttt{sigma} face as argument; in this case,
+only the area inside \texttt{sigma} will be fragmented.
 
 The procedure is synthesized here:
-It fragments every edge in \texttt{EV}. 
-When the fragmentation is done, coincident vertices are merged into one and useless edges are deleted. At last,
-2-cells are build and the result is returned.
+Every edge is fragmented. The fragments are then merged in a complete and correct 1-skeleton.
+At last, 2-cells are built and the result is returned.
 To later perform boolean operation with ease, we also build and return a map from the original
 edges to the new ones.
 
@@ -87,23 +86,19 @@ General tests are defined in Appendix A (ref. \ref{ch:planar_arrangement_tests})
 \subsection{Support function}
 \label{sec:frag_edge}
 The edge fragmentation is performed by using a function called \texttt{frag\_edge}.
-It fragments the edge of index \texttt{edgenum} into \texttt{EV} computing the intersections of
-it with the other edges into \texttt{EV}. It returns the updated vertices list \texttt{V} and an 
-\texttt{EV} matrix that contains the freshly computed edges.
-For every edge in \texttt{EV}, it needs to check if \texttt{edge}(the edge of index \texttt{edgenum} into 
-\texttt{EV}) intersects with it. This is done through \texttt{intersect\_edges} (ref. \ref{sec:intersect_edges}); 
-this function takes two edges and returns a list of the intersections of the first edge with the second one; 
-every entry of this list is a tuple made of the intersection point and a normalized intersection parameter. 
-When there is an intersection, the new point is be pushed into the \texttt{V} matrix while the parameter 
-is stored into the \texttt{alphas} dictionary as a key coupled to the new point index.
-When every possible intersection is found, the keys in \texttt{alphas} are sorted and, on the base of that,
-a new \texttt{EV} is computed.
+It fragments the edge of index \texttt{edge\_idx} computing the intersections of
+it with the other edges of the complex. It returns the updated vertices list and the freshly computed edges.
+For every edge, it needs to check if the edge to fragment intersects with it. 
+The actual edges intersection are computed by \texttt{intersect\_edges} function (ref. \ref{sec:intersect_edges})
+The intersections points are then sorted along the edge to fragment and correct fragments (which are edges themselves)
+are computed.
+
 @D planar\_arrangement support functions
-@{function frag_edge(V::Verts, EV::Cells, edgenum::Int)
+@{function frag_edge(V::Verts, EV::Cells, edge_idx::Int)
     alphas = Dict{Float64, Int}()
-    edge = EV[edgenum, :]
+    edge = EV[edge_idx, :]
     for i in 1:size(EV, 1)
-        if i != edgenum
+        if i != edge_idx
             intersection = intersect_edges(V, edge, EV[i, :])
             for (point, alpha) in intersection
                 V = [V; point]
@@ -115,11 +110,11 @@ a new \texttt{EV} is computed.
     alphas[0.0], alphas[1.0] = edge.nzind
 
     alphas_keys = sort(collect(keys(alphas)))
-    cells_num = length(alphas_keys)-1
+    edge_num = length(alphas_keys)-1
     verts_num = size(V, 1)
-    EV = spzeros(Int8, cells_num, verts_num)
+    EV = spzeros(Int8, edge_num, verts_num)
 
-    for i in 1:cells_num
+    for i in 1:edge_num
         EV[i, alphas[alphas_keys[i]]] = 1
         EV[i, alphas[alphas_keys[i+1]]] = 1
     end
@@ -130,13 +125,21 @@ end
 %+++++++++++++++++++++++++++++%
 \subsection{Edge intersections}
 \label{sec:intersect_edges}
-We used the method presented by Bourke\cite{Bourke} to calculate
-the intersection of two edges. Particular attention is needed on the case of colinear edges: it can happen
+Three major cases are to be considered when intersecting two edges:
+\begin{enumerate}[noitemsep]
+    \item They are not parallel
+    \item They are colinear (they stand on the same line) 
+    \item They are parallel but not colinear
+\end{enumerate}
+In the third case there will be no intersections for sure so this case is skipped.
+When they are not parallel there will be no more than a single intersection; in this case
+we use the method presented by Bourke\cite{Bourke} to calculate it.
+Particular attention is needed on the case of colinear edges: it can happen
 that \texttt{edge2} is contained into the bounds of the colinear \texttt{edge1}; in this case, both points of
 \texttt{edge2} are to be considered intersection and hence must be returned. Because of this, 
 the intersections are returned as a list than can contain from zero to two elements; 
-each element is a couple \texttt{\{Verts, Float64\}} which represent the intersection
-point and a parameter that is useful for sorting the fragmentation points of an edge.
+each element is a couple containing the intersection
+point and a parameter useful for sorting the fragmentation points of an edge.
 @D planar\_arrangement support functions
 @{function intersect_edges(V::Verts, edge1::Cell, edge2::Cell)
     err = 10e-8
@@ -149,14 +152,11 @@ point and a parameter that is useful for sorting the fragmentation points of an 
     v2 = [x4-x3, y4-y3];
     v3 = [x3-x1, y3-y1];
 
-    ang1 = dot(normalize(v1), normalize(v2))
-    ang2 = dot(normalize(v1), normalize(v3))
-
-    colinear = 1-err < abs(ang1) < 1+err && (1-err < abs(ang2) < 1+err || -err < norm(v3) < err )
+    @< Check if colinear or parallel @>
 
     if colinear
         @< Handle colinear edges @>
-    else
+    elseif !parallel
         denom = (v2[2])*(v1[1]) - (v2[1])*(v1[2])
         a = ((v2[1])*(-v3[2]) - (v2[2])*(-v3[1])) / denom
         b = ((v1[1])*(-v3[2]) - (v1[2])*(-v3[1])) / denom
@@ -171,8 +171,22 @@ point and a parameter that is useful for sorting the fragmentation points of an 
 end
 @}
 
-If the $\langle$ Handle colinear edges $\rangle$ macro is run, we are sure that the four vertices of 
-\texttt{edge1} and \texttt{edge2} are colinear. So, to find if \texttt{edge2} has one or both of 
+To check if edges are parallel we check the parallelism between
+the vectors defining the edges using the dot product.
+Edges are colinear if they are parallel and the points of
+the second edge stand on the line of the first edge
+(or one of the points of the second edge is coincident to
+on point of the first one).
+
+@D Check if colinear or parallel
+@{ang1 = dot(normalize(v1), normalize(v2))
+ang2 = dot(normalize(v1), normalize(v3))
+
+parallel = 1-err < abs(ang1) < 1+err
+colinear = parallel && (1-err < abs(ang2) < 1+err || -err < norm(v3) < err)
+@}
+
+To find if \texttt{edge2} has one or both of 
 its vertices inside \texttt{edge1} we follow this procedure:
 \begin{enumerate}
 \item We parametrize \texttt{edge1}:
@@ -206,12 +220,13 @@ end
 %+++++++++++++++++++++++++%
 \subsection{Implementation}
 
-When we need to fragment an edge we use the \texttt{frag\_edge} function (ref. \ref{sec:frag_edge}) 
-and we simply update \texttt{V} and push the small \texttt{ev} matrix into a list of cells called \texttt{EVs}.
+When we need to fragment an edge we just use the \texttt{frag\_edge} function (ref. \ref{sec:frag_edge}) 
+and we update data and store the changes.
 While we fragment the edges, we also build a temporary version of \texttt{edge\_map}(ref. \ref{sec:planar_arrangement_overview}). We do this using \texttt{i}
 (the index of the edge that must be fragmented) and the indices of the new edges inside \texttt{ev}
 offset by the \texttt{finalcells\_num} counter, which is updated at every step adding the numbers of
-fragments created per edge; this counter will also be used later to build the complete \texttt{EV} with ease.
+fragments created per edge; this counter will also be used later to build the complete 1-skeleton 
+edge matrix with ease.
 
 @D Fragment edge
 @{V, ev = frag_edge(V, EV, i)
@@ -233,8 +248,7 @@ finalcells_num = 0
 
 So now we have a \texttt{V} that contains the original points with the points computed with the fragmentation
 and \texttt{EVs}, a list of edges matrices. We must now put the entries of this list together to form an unique
-\texttt{EV} matrix. The process is not immediate because every entry of the list has columns relative to the 
-number of vertices in \texttt{V} at the moment of the computation.
+\texttt{EV} matrix.
 
 @D Put fragmentation results together
 @{EV = spzeros(Int8, finalcells_num, size(V,1))
@@ -308,9 +322,9 @@ which provides a reliable implementation of the \texttt{KDTree} data structure.
 
 The function is marked with "\texttt{!}" in its signature 
 because it has collateral effects
-on the \texttt{edge\_map} argument; we need this argument because when we
-merge vertices, we will for sure delete some edges and so we have
-to update \texttt{edge\_map} with the new indices.
+on the \texttt{edge\_map} argument; we will for sure modify both
+the geometry and the topology of the complex, so \texttt{edge\_map}
+must be accordingly updated.
 
 @D planar\_arrangement support functions
 @{function merge_vertices!(V::Verts, EV::Cells, edge_map, err=1e-4)
@@ -461,7 +475,8 @@ we need to delete the edges outside the area of the sigma face.
 First, we use \texttt{edge\_map} to get the fragments of the edges of the original sigma;
 then for every edge which is not a fragment of sigma's edges, we check if its centroid
 is inside sigma using the \texttt{point\_in\_face} utility (ref. \ref{sec:point_in_face}).
-Finally, once we have marked the edges to delete, we delete them (ref. \ref{sec:delete_edges}) and update the \texttt{edge\_map}.
+Finally, once we have marked the edges to delete, we delete them (ref. \ref{sec:delete_edges}) 
+and update the \texttt{edge\_map} (refer to next macro for this).
 
 @D Delete edges outside sigma area
 @{if sigma.n > 0
@@ -521,7 +536,7 @@ end
     \includegraphics{./img/ch2-bicon.pdf}
     \caption{An example graph where the maximal biconnected 
     components are highlighted in green and the edges are numbered. 
-    We have here three components formed by the sets of edges {1,5,9}, {2,6,10} and {3,11,7} }
+    We have here three components formed by the sets of edges \{1,5,9\}, \{2,6,10\} and \{3,11,7\} }
     \label{img:bicon_comps}
 \end{figure}
 %+++++++++++++++++++++++++++%

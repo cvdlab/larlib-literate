@@ -21,44 +21,12 @@ include("../../lib/jl/dimension_travel.jl")
 @}
 
 
-%%%%%%%%%%%%%%%%%%%%%%%
-\section{Normalization}
-This function returns the direct and inverse transformation that
-normalizes every point in \texttt{V} to mek them fit into the unitary
-$d$-dimensional hyper-cube.
-First of all, the function computes the bounding box of the input points.
-Then it combines a translation and a scaling matrix. Lastly, it
-inverts the matrix and returns both the direct and the inverse matrix.
-@D Dimension travel functions
-@{function normalizer(V::Verts)
-    d = size(V, 2)
-    upper = mapslices(x->max(x...), V, 1)
-    lower = mapslices(x->min(x...), V, 1)
-    diff = upper-lower
-
-    T = eye(d+1)
-    T[d+1, 1:d] = -lower
-
-    S = eye(d+1)
-    S[1:d, 1:d] = diagm(vec(map(inv, diff)))
-
-    mat = T*S
-    mat, inv(mat)
-end
-@}
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Submanifold mapping}
 
 This function, given three points (in $\mathbb{E}^3$), 
 returns a $4\times4$ transformation matrix that "flattens"
-plane on which the points lay on the $x_3=0$ plane. 
-The matrix is made of the composition of
-a translation matrix and a coordinate reference change. The translation
-makes the first point passes coincident to the origin and
-the coordinate reference change is computed by building a reference
-system of the plane define by the three points.
+the plane defined by the three points onto the $x_3=0$ plane.
 
 @D Dimension travel functions
 @{function submanifold_mapping(p1, p2, p3)
@@ -94,7 +62,7 @@ end
 \section{Spatial index computation}
 
 The aim of this function is to compute a \textit{spatial index} that maps
-each cell to a set of cells which it may collide with.
+each face to a set of faces which it may collide with.
 This is achieved by profuse use of bounding boxes and interval trees. 
 These last ones are implemented with the \texttt{IntervalTrees.jl} package
 (\url{https://github.com/BioJulia/IntervalTrees.jl})
@@ -153,12 +121,13 @@ end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Face intersection with $z=0$ plane}
+\section{Face intersection with $x_3=0$ plane}
 
-The intersection of a polygonal face with the $z=0$ computes
+The intersection of a polygonal face with the $x_3=0$ plane computes
 zero, one or more edges. To perform the intersection we find the
-intersection point of every edge with the $z=0$ plane and then
-we connect the points.
+intersection point of every edge with the $x_3=0$ plane and then
+we connect the points. It is safe to completely ignore edges
+parallel to the $x_3=0$ plane
 
 @D Dimension travel functions
 @{function face_int(V::Verts, EV::Cells, face::Cell)
