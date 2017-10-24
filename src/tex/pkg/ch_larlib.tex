@@ -17,6 +17,13 @@ an interface of only three functions:
 @O lib/jl/LARLIB.jl
 @{module LARLIB
 
+    try
+        Pkg.installed("TRIANGLE")
+    catch
+        Pkg.clone("https://github.com/furio/TRIANGLE.jl.git")
+        Pkg.build("TRIANGLE")
+    end
+
     module Arrangement
         @< LAR types @>
         include("./planar_arrangement.jl")
