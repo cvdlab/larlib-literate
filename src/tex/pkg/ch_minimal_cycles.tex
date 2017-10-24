@@ -10,7 +10,7 @@ by A. Paoluzzi et al. in \textit{Arrangements of cellular complexes}
 \cite{Paoluzzi}.
 The method is dimension-independent, so works for both $d=2$ and $d=3$;
 the only difference between the two cases lays in the \texttt{angles\_fn}
-function (ref. \ref{sec:angles_fn}). To support this multidimensional
+function [ref. \ref{sec:angles_fn}]. To support this multidimensional
 behavior, the algorithm has been implemented as an high-order function\footnote{
     \textbf{Notes on variables names:} \texttt{ld} stands for \textit{lower dimension} ($d-1$)
     and \texttt{lld} for \textit{lower lower dimension} ($d-2$). So, \texttt{ld\_cellsnum} is the
@@ -80,7 +80,7 @@ end
 
 The bigger part of the algorithm is the computation
 of a single cycle. It is mostly equivalent to the
-\textbf{ALGORITHM 1} of A. Paoluzzi et al.
+ALGORITHM 1 by A. Paoluzzi et al.
 \cite{Paoluzzi}
 
 @D Compute a cycle
@@ -199,80 +199,14 @@ end
 
 %%%%%%%%%%%%%%%%%%
 \subsection{$d=3$}
+\label{sec:3d_minimal_cycles}
 
 Here we have edges for ($d-2$)-cells and faces for ($d-1$)-cells.
 
 @D Minimal cycles implementations
 @{function minimal_3cycles(V::Verts, EV::Cells, FE::Cells)
 
-    triangulated_faces = Array{Any, 1}(FE.m)
-
-    function face_angle(e::Int, f::Int)
-        if !isdefined(triangulated_faces, f)
-            vs_idxs = Array{Int64, 1}()
-            edges_idxs = FE[f, :].nzind
-            edge_num = length(edges_idxs)
-            edges = zeros(Int64, edge_num, 2)
-
-            for (i, ee) in enumerate(edges_idxs)
-                edge = EV[ee, :].nzind
-                edges[i, :] = edge
-                vs_idxs = union(vs_idxs, edge)
-            end
-            
-            vs = V[vs_idxs, :]
-
-            v1 = normalize(vs[2, :] - vs[1, :])
-            v3 = [0 0 0]
-            err = 1e-8
-            i = 3
-            while -err < norm(v3) < err
-                v2 = normalize(vs[i, :] - vs[1, :])
-                v3 = cross(v1, v2)
-                i = i + 1
-            end
-
-            M = reshape([v1; v2; v3], 3, 3)
-
-            vs = vs*M
-
-            triangulated_faces[f] = TRIANGLE.constrained_triangulation(vs, vs_idxs, edges, fill(true, edge_num))
-        end
-
-        edge_vs = EV[e, :].nzind
-
-        t = findfirst(x->edge_vs[1] in x && edge_vs[2] in x, triangulated_faces[f])
-        
-        # Indexes of the vertices of the triangle
-        triangle = triangulated_faces[f][t]
-
-        # Get normalized vector of hinge
-        v1 = normalize(V[edge_vs[2], :] - V[edge_vs[1], :])
-
-        # Build frame
-        if abs(v1[1]) > abs(v1[2])
-            invlen = 1. / sqrt(v1[1]*v1[1] + v1[3]*v1[3])
-            v2 = [-v1[3]*invlen, 0, v1[1]*invlen]
-        else
-            invlen = 1. / sqrt(v1[2]*v1[2] + v1[3]*v1[3])
-            v2 = [0, -v1[3]*invlen, v1[2]*invlen]
-        end
-        v3 = cross(v1, v2)
-
-        # Build transformation matrix
-        M = reshape([v1; v2; v3], 3, 3)
-
-        # Transform
-        third_v = setdiff(triangle, edge_vs)[1]
-        vs = V[[edge_vs..., third_v], :]*M
-
-        # return atan2 of 3rd with 1st
-        v = vs[3, :] - vs[1, :]
-
-        angle = atan2(v[2], v[3]) 
-
-        return angle
-    end
+    @< Face angle function @>
 
     EF = FE'
 
@@ -280,4 +214,105 @@ Here we have edges for ($d-2$)-cells and faces for ($d-1$)-cells.
 
     return -FC'
 end
+@}
+
+This time we need to sort faces around an hinge edge.
+To compute the angle of a face, we transform it
+in a way that the hinge lays on the $x_1$ positive
+axis\footnote{The method to compute an univocal reference frame 
+from a single vector comes from \textit{Physically Based Rendering} by
+Pharr and Humphreys \cite{Pharr:2010:PBR:1854996}}. In this way, 
+we can compute the angle of a face
+by using a classic \texttt{atan2} call. 
+
+Due to the fact that faces can be non-convex, 
+we triangulate them to be sure to compute their 
+angle correctly; in the case of a non-convex face, 
+it can happen that is picked erroneously the opposite
+angle of the right one. The triangulation is performed
+only when the face of index \texttt{f} is visited for the first time.
+
+
+@D Face angle function
+@{triangulated_faces = Array{Any, 1}(FE.m)
+
+function face_angle(e::Int, f::Int)
+    if !isdefined(triangulated_faces, f)
+        @< Triangulate face @>
+    end
+
+    edge_vs = EV[e, :].nzind
+
+    t = findfirst(x->edge_vs[1] in x && edge_vs[2] in x, triangulated_faces[f])
+    
+    v1 = normalize(V[edge_vs[2], :] - V[edge_vs[1], :])
+    if abs(v1[1]) > abs(v1[2])
+        invlen = 1. / sqrt(v1[1]*v1[1] + v1[3]*v1[3])
+        v2 = [-v1[3]*invlen, 0, v1[1]*invlen]
+    else
+        invlen = 1. / sqrt(v1[2]*v1[2] + v1[3]*v1[3])
+        v2 = [0, -v1[3]*invlen, v1[2]*invlen]
+    end
+    v3 = cross(v1, v2)
+
+    M = reshape([v1; v2; v3], 3, 3)
+
+    triangle = triangulated_faces[f][t]
+    third_v = setdiff(triangle, edge_vs)[1]
+    vs = V[[edge_vs..., third_v], :]*M
+
+    v = vs[3, :] - vs[1, :]
+    angle = atan2(v[2], v[3]) 
+
+    return angle
+end
+@}
+
+To perform triangulation we use the
+Julia porting by F. Furiani of Triangle, 
+a well known C library for constrained 
+Delaunay triangulations \cite{Triangle.jl}\cite{Triangle}.
+Due to the fact that Delaunay triangulation works only
+in $\mathbb{E}^2$, we need to transform the face to triangulate
+on the $x_3=0$ plane. To compute a reference frame on the
+face plane, we use the classic method of doing two differences 
+of three non-colinear vertices of the face
+and then cross multiply the vectors resulting from the differences
+two to get a third one.
+To make sure that the three chosen vertices are not colinear, we
+check if the cross of the two difference vectors has non-zero length
+and we choose new set of vertices until this condition is satisfied%
+\footnote{We check the length of the cross product against a fixed
+error [ref. \ref{sec:floating-point_error}].}.
+
+@D Triangulate face
+@{vs_idxs = Array{Int64, 1}()
+edges_idxs = FE[f, :].nzind
+edge_num = length(edges_idxs)
+edges = zeros(Int64, edge_num, 2)
+
+for (i, ee) in enumerate(edges_idxs)
+    edge = EV[ee, :].nzind
+    edges[i, :] = edge
+    vs_idxs = union(vs_idxs, edge)
+end
+
+vs = V[vs_idxs, :]
+
+v1 = normalize(vs[2, :] - vs[1, :])
+v3 = [0 0 0]
+err = 1e-8
+i = 3
+while -err < norm(v3) < err
+    v2 = normalize(vs[i, :] - vs[1, :])
+    v3 = cross(v1, v2)
+    i = i + 1
+end
+
+M = reshape([v1; v2; v3], 3, 3)
+
+vs = vs*M
+
+triangulated_faces[f] = TRIANGLE.constrained_triangulation(
+    vs, vs_idxs, edges, fill(true, edge_num))
 @}

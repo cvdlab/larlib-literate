@@ -1,34 +1,4 @@
-@misc{ Bourke,
-       author = "P. Bourke",
-       title = "Points, lines, and planes",
-       year = "October 1988",
-       howpublished = "\url{http://paulbourke.net/geometry/pointlineplane/}"}
-
-@misc{ NearestNeighbors,
-    author = "K. Carlsson",
-    title = "\texttt{NearestNeighbors.jl}",
-    year = "November 2015",
-    howpublished = "\url{https://github.com/KristofferC/NearestNeighbors.jl}"}
-
-@misc{ Hopcroft-Tarjan,
-    author = "J. Hopcroft and R. Tarjan",
-    title = "Efficient Algorithms for Graph Manipulation",
-    year = "June 1973",
-    howpublished = "\url{http://doi.acm.org/10.1145/362248.362272}"}
-
-@misc{ transitive_reduction,
-    author = "A. V. Aho M. R. Garey and J. D. Ullman",
-    title = "The Transitive Reduction of a Directed Graph",
-    year = "August 2017",
-    howpublished = "\url{http://epubs.siam.org/doi/10.1137/0201008}"}
-
-@misc{ parallel_transitive_reduction,
-    author = "D. Bosnacki W. Ligtenberg M. Odenbrett A. Wijs and P. Hilbers",
-    title = "Parallel Algorithm for Transitive Reduction for Weighted Graphs",
-    year = "2010",
-    howpublished = "\url{https://www.win.tue.nl/~awijs/articles/TransitiveReductionMM.pdf}"}
-
-@ARTICLE{Paoluzzi,
+@misc{ Paoluzzi,
     author = {{Paoluzzi}, A. and {Shapiro}, V. and {DiCarlo}, A.},
     title = "{Regularized arrangements of cellular complexes}",
     journal = {ArXiv e-prints},
@@ -40,4 +10,176 @@
     month = apr,
     adsurl = {http://adsabs.harvard.edu/abs/2017arXiv170400142P},
     adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+@misc{ Bourke,
+    author = {{Bourke}, P.},
+    title = "Points, lines, and planes",
+    year = 1988,
+    month = oct,
+    howpublished = "\url{http://paulbourke.net/geometry/pointlineplane/}"
+}
+
+@misc{ NearestNeighbors,
+    author = {{Carlsson}, K.},
+    title = "\texttt{NearestNeighbors.jl}",
+    year = 2015,
+    month = nov,
+    howpublished = "\url{https://github.com/KristofferC/NearestNeighbors.jl}"
+}
+
+@article{ Hopcroft-Tarjan,
+	Acmid = {362272},
+	Address = {New York, NY, USA},
+	Author = {Hopcroft, John and Tarjan, Robert},
+	Date-Added = {2015-02-04 05:53:27 +0000},
+	Date-Modified = {2015-02-04 05:53:27 +0000},
+	Doi = {10.1145/362248.362272},
+	Issn = {0001-0782},
+	Issue_Date = {June 1973},
+	Journal = {Commun. ACM},
+	Keywords = {analysis of algorithms, graph manipulation, graphs},
+	Month = jun,
+	Number = {6},
+	Numpages = {7},
+	Pages = {372--378},
+	Publisher = {ACM},
+	Title = {Algorithm 447: Efficient Algorithms for Graph Manipulation},
+	Url = {http://doi.acm.org/10.1145/362248.362272},
+	Volume = {16},
+	Year = {1973},
+	Bdsk-Url-1 = {http://doi.acm.org/10.1145/362248.362272},
+	Bdsk-Url-2 = {http://dx.doi.org/10.1145/362248.362272}
+}
+
+@article{ transitive_reduction,
+    author = {{Aho}, A. V. and {Garey}, M. R. and {Ullman}, J. D.},
+    title = "The Transitive Reduction of a Directed Graph",
+    year = 1971,
+    month = aug,
+    howpublished = "\url{http://epubs.siam.org/doi/10.1137/0201008}"
+}
+
+@book{ interval_trees,
+    author = {{Preparata}, F. P. and {Shamos}, M. I.},
+    title = "Computational Geometry: An Introduction",
+    year = 1985,
+    publisher = {Springer-Verlag New York, Inc.}
+}
+
+@misc{ IntervalTrees,
+    author = {{Jones}, D. C.},
+    title = "\texttt{IntervalTrees.jl}",
+    year = 2014,
+    month = apr,
+    howpublished = "\url{https://github.com/BioJulia/IntervalTrees.jl}"
+}
+
+@article{ knuth,
+	Acmid = {479},
+	Address = {Oxford, UK},
+	Author = {Knuth, Donald E.},
+	Date-Added = {2013-10-13 12:34:12 +0000},
+	Date-Modified = {2013-10-13 12:34:12 +0000},
+	Doi = {10.1093/comjnl/27.2.97},
+	Issn = {0010-4620},
+	Issue_Date = {May 1984},
+	Journal = {Comput. J.},
+	Month = may,
+	Number = {2},
+	Numpages = {15},
+	Pages = {97--111},
+	Publisher = {Oxford University Press},
+	Title = {Literate programming},
+	Url = {http://dx.doi.org/10.1093/comjnl/27.2.97},
+	Volume = {27},
+	Year = {1984},
+	Bdsk-Url-1 = {http://dx.doi.org/10.1093/comjnl/27.2.97}
+}
+
+@misc{ julia,
+    author = {{Bezanson}, J. and {Karpinski}, S. and {Shah}, V. and {Edelman}, A.},
+    title = {Why We Created Julia},
+    year = 2012,
+    month = feb,
+    day = 14,
+    howpublished = "\url{https://julialang.org/blog/2012/02/why-we-created-julia}"
+}
+
+@incollection{ Triangle,
+    author = {Jonathan Richard Shewchuk},
+    title = {Triangle:  {E}ngineering a {2D} {Q}uality {M}esh {G}enerator and
+    {D}elaunay {T}riangulator},
+    booktitle = {Applied Computational Geometry:  Towards Geometric Engineering},
+    editor = {Ming C. Lin and Dinesh Manocha},
+    series = {Lecture Notes in Computer Science},
+    volume = 1148,
+    publisher = {Springer-Verlag},
+    pages = {203--222},
+    month = may,
+    year = 1996,
+    note = {From the First ACM Workshop on Applied Computational Geometry}
+}
+
+@misc{ Triangle.jl,
+    author = {{Furiani}, F.},
+    title = "\texttt{Triangle.jl}",
+    year = 2017,
+    month = may,
+    howpublished = "\url{https://github.com/furio/TRIANGLE.jl}"
+}
+
+@techReport{Paoluzzi-ART1986,
+   author =      {A. Paoluzzi},
+   title =       {A Robust Tile-Based Algorithm for Point/Polygon
+                  Classification},
+   institution = {Dip. di Informatica e Sistemistica, Universit\`a 'La
+                  Sapienza'},
+   number =      {03-86},
+   month =       {June},
+   year =        1986,
+}
+
+@article{Dicarlo:2014:TNL:2543138.2543294,
+	Acmid = {2543294},
+	Address = {Newton, MA, USA},
+	Author = {Dicarlo, Antonio and Paoluzzi, Alberto and Shapiro, Vadim},
+	Doi = {10.1016/j.cad.2013.08.044},
+	Issn = {0010-4485},
+	Issue_Date = {January, 2014},
+	Journal = {Comput. Aided Des.},
+	Keywords = {Chain complex, Representation scheme, Solid modeling, Sparse matrix},
+	Month = jan,
+	Numpages = {6},
+	Pages = {269--274},
+	Publisher = {Butterworth-Heinemann},
+	Title = {Linear Algebraic Representation for Topological Structures},
+	Url = {http://dx.doi.org/10.1016/j.cad.2013.08.044},
+	Volume = {46},
+	Year = {2014},
+	Bdsk-Url-1 = {http://dx.doi.org/10.1016/j.cad.2013.08.044}
+}
+
+@article{ieee-tase,
+	Author = {DiCarlo, A. and Milicchio, F. and Paoluzzi, A. and Shapiro, V.},
+	Doi = {10.1109/TASE.2009.2021342},
+	Issn = {1545-5955},
+	Journal = {Automation Science and Engineering, {IEEE} Transactions on},
+	Keywords = {Euler operators;Hasse matrix;block-bidiagonal matrix;chain-based representations;local mesh refinements;multilinear transformations;physical modeling;solid modeling;topology-preserving mesh refinements;matrix algebra;mesh generation;},
+	Month = {July},
+	Number = 3,
+	Pages = {454 -467},
+	Title = {Chain-Based Representations for Solid and Physical Modeling},
+	Volume = 6,
+	Year = 2009,
+	Bdsk-Url-1 = {http://dx.doi.org/10.1109/TASE.2009.2021342}}
+
+@book{Pharr:2010:PBR:1854996,
+    author = {Pharr, Matt and Humphreys, Greg},
+    title = {Physically Based Rendering, Second Edition: From Theory To Implementation},
+    year = {2010},
+    isbn = {0123750792, 9780123750792},
+    edition = {2nd},
+    publisher = {Morgan Kaufmann Publishers Inc.},
+    address = {San Francisco, CA, USA},
 }

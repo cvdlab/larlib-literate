@@ -5,11 +5,14 @@
 \usepackage{amsfonts}
 \usepackage{graphicx}
 \usepackage{enumitem}
+\usepackage{multicol}
 \usepackage[font=small,labelfont=bf]{caption}
-\hypersetup{colorlinks = true}
+\hypersetup{colorlinks = false}
 
 \author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
 \title{Linear Algebraic Representation}
+
+%\title{Parallel Julia Implementation Of A Geometric Kernel For Boolean Operations Based On The Lar Scheme.}
 
 \begin{document}
 
@@ -17,17 +20,24 @@
 \maketitle
 \tableofcontents
 
-
 \mainmatter
 
-\input{ch1_larlib.tex}
-\input{ch2_planar_arrangement.tex}
-\input{ch3_dimension_travel.tex}
-\input{ch4_spatial_arrangement.tex}
-\input{ch5_minimal_cycles.tex}
-\input{ch6_utilities.tex}
-\input{e1_tests.tex}
+\part{Introduction}
+\input{intro.tex}
 
+\part{Implementation}
+
+\input{ch_larlib.tex}
+\input{ch_spatial_arrangement.tex}
+\input{ch_planar_arrangement.tex}
+\input{ch_dimension_travel.tex}
+\input{ch_minimal_cycles.tex}
+\input{ch_utilities.tex}
+
+\part{Tests and conclusions}
+
+\input{ch_tests.tex}
+\input{ch_conclusions.tex}
 
 \backmatter
 

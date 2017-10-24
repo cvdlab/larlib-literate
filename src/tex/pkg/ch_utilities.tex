@@ -8,8 +8,7 @@ The functionalities shared between all the components of LAR
 are defined in here.
 
 @O lib/jl/utilities.jl
-@{@< Aliases @>
-@< Utilities @>
+@{@< Utilities @>
 @}
 
 \subsection{Tests}
@@ -23,30 +22,14 @@ include("../../lib/jl/utilities.jl")
 @}
 
 
-%%%%%%%%%%%%%%%
-\section{Types}
-
-To store vertices and cells boundary matrices, 
-we use types already built in the standard Julia.
-We use these aliases to standardize the types used 
-throughout LAR. 
-
-@D Aliases
-@{const Verts = Array{Float64, 2}
-const Cells = SparseMatrixCSC{Int8, Int}
-const Cell = SparseVector{Int8, Int}
-@}
-
-
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%
 \section{Bounding boxes}
 \label{sec:bboxes}
 
 Bounding boxes are essential in many steps of many
 algorithms in LAR. Here we present a method for building
-and performing containment tests on n-dimensional bounding boxes.
+and performing containment tests on n-dimensional 
+axis aligned bounding boxes.
 
 @D Utilities
 @{function bbox(vertices::Verts)
@@ -183,9 +166,10 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 \section{Skeletal merge}
+\label{sec:skel_merge}
 
-It is generally useful to have a utility to merge the skeletons of
-two cellular complexes. We have both the $d=2$ and $d=3$ versions.
+The first step of the arrangement algorithm is ever
+the skeletal merge [ref. \ref{sec:spatial_arrangement_overview}].
 
 @D Utilities
 @{function skel_merge(V1::Verts, EV1::Cells, V2::Verts, EV2::Cells)
@@ -210,7 +194,9 @@ end
 \label{sec:point_in_face}
 
 Point in face inclusion is performed using the algorithm
-presented by A. Paoluzzi et al. (NEED TO FIND REFERENCE)
+presented by A. Paoluzzi in 1986 \cite{Paoluzzi-ART1986}.
+It is based on the ray shooting and it analyzes more than
+thirty possible ray-edge intersection cases.
 
 @D Utilities
 @{function point_in_face(origin, V::Verts, ev::Cells)
@@ -375,6 +361,11 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%
 \section{Vertex equality utilities}
+\label{sec:vertex_equality}
+
+Vertex comparison must be performed using 
+floating-point fixed error 
+[ref. \ref{sec:floating-point_error}].
 
 @D Utilities
 @{function vin(vertex, vertices_set)

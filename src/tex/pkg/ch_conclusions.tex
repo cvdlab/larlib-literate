@@ -1,0 +1,51 @@
+\chapter{Conclusions}
+
+We described in depth the implementation of
+the merge algorithm as formulated by A. Paoluzzi et al.
+\cite{Paoluzzi}. We introduced the thesis using a very brief
+theoretical overview of the algorithm and its applications,
+and then we explored the implementation starting from
+the $d=3$ case down to the $d=1$ one. At the end we presented
+two very representative examples to show the capabilities of this
+algorithm.
+
+\section{Future developments}
+
+\subsection{Parallelization}
+In the introduction, we said the algorithm follows 
+the \textit{divide et impera} philosophy; this happens
+to be a very good thing to do while doing parallel programming.
+The best way to parallelize the system is to launch
+a separate job for every face of the 2-skeleton during the
+fragmentation of the complex, which is the heavier part of
+the whole algorithm.
+For this reason, the implementation has been developed to
+be ``parallel ready'', in this way, it will be possible
+to easily make this implementation parallel for real using
+the Julia parallelization capabilities. This work will
+be done in the next few weeks.
+
+\subsection{Boolean operations}
+As you may have noticed, the arrangement algorithm
+is not enough to perform Boolean operations by itself.
+But you may also have noticed we developed this implementation
+being constantly conscious about the finalities of the algorithm
+and so we laid the foundations to a future easy implementation
+of real Boolean operations.
+
+\subsection{Handling of $3$-cells with non-intesecting shells}
+In this implementation we handled only $2$-cells with non-intersecting
+shells [ref. \ref{sec:planar_arrangement_overview}] but also $3$-cells
+with non-intersecting shells (which trivially are 3-cells with holes) 
+must be handled. This lack will be
+fixed as soon as possible following the directions of the ALGORITHM 2
+as described by A. Paoluzzi et al. \cite{Paoluzzi}.
+
+\subsection{LAR}
+This thesis is only the beginning of the Julia implementation
+of LAR. There are many modules that has been written 
+during the development of the Python version of LAR
+[ref. \ref{sec:history}] that are ready to be ported
+on the foundations that the module presented in this thesis
+laid. The porting of these other modules is planned for the
+next months.
