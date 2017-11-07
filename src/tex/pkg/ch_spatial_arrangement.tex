@@ -9,6 +9,8 @@ It has been explained in the introduction [ref. \ref{sec:spatial_arrangement_ove
 @{@< spatial\_arrangement imports @>
 @< spatial\_arrangement support functions @>
 
+include("../../plasm.jl")
+
 function spatial_arrangement(V::Verts, EV::Cells, FE::Cells)
     vs_num = size(V, 1)
     es_num = size(EV, 1)
@@ -31,6 +33,10 @@ function spatial_arrangement(V::Verts, EV::Cells, FE::Cells)
 
         nV, nEV, nFE = planar_arrangement(sV, sEV, sparsevec(ones(Int8, length(sigmavs))))
 
+        if nV == nothing
+            continue
+        end
+        
         nvsize = size(nV, 1)
         nV = [nV zeros(nvsize) ones(nvsize)]*inv(M)[:, 1:3]
 
@@ -39,7 +45,7 @@ function spatial_arrangement(V::Verts, EV::Cells, FE::Cells)
 
     rV, rEV, rFE = merge_vertices(rV, rEV, rFE)
 
-    rCF = minimal_3cycles(rV, rEV, rFE)
+    @< Create 3-cells @>
 
     return rV, rEV, rFE, rCF
 end
@@ -64,7 +70,7 @@ we transform the geometry and we intersect every cell in $\mathcal{I}(\sigma)$
 with the $x_3=0$ plane using \texttt{face\_int} [ref. \ref{sec:face_int}].
 
 @D Sigma flattening
-@{M = submanifold_mapping(sV[1,:], sV[2,:], sV[3,:])
+@{M = submanifold_mapping(sV)
 tV = ([V ones(vs_num)]*M)[:, 1:3]
 
 sV = tV[sigmavs, :]
@@ -213,4 +219,18 @@ for fi in 1:nfacenum
         nFE[fi, ei] = sign(edge[2] - edge[1])
     end
 end
+@}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{$3$-cells creation}
+
+@D Create 3-cells
+@{@< Compute connected components @>
+@< Compute containment tree @>
+@< Cell union @>
+
+rCF = minimal_3cycles(rV, rEV, rFE)
 @}

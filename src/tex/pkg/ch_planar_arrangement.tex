@@ -606,7 +606,7 @@ Like for the vertices merge we simply call the freshly implemented \texttt{bicon
 
 if isempty(bicon_comps)
     println("No biconnected components found.")
-    return
+    return (nothing, nothing, nothing)
 end
 @}
 
