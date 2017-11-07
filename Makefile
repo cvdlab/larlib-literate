@@ -7,6 +7,7 @@ PDF_DIR = $(DOC_DIR)/pdf
 
 CODE_DIR = ./lib/jl
 TEST_DIR = ./test/jl
+EXAMPLES_DIR = ./examples/jl
 
 PKG_DIR = ./pkg
 
@@ -56,10 +57,17 @@ pkg: lib test
 	git clone https://github.com/cvdlab/larlib.jl $(PKG_DIR)
 	cp -Rf $(CODE_DIR)/* $(PKG_DIR)/src/
 	cp -Rf $(PDF_DIR)/* $(PKG_DIR)/doc/
-	for i in $(TEST_DIR)/*.jl ; do \
+	cp -Rf $(TEST_DIR)/* $(PKG_DIR)/test/
+	mkdir $(PKG_DIR)/examples/
+	cp -Rf $(EXAMPLES_DIR)/* $(PKG_DIR)/examples/
+
+	for i in $(PKG_DIR)/test/*.jl ; do \
 		sed -i -E 's/^include\(\"\.\.\/\.\.\/lib\/jl/include\(\"\.\.\/src/' $$i ; \
 	done
-	cp -Rf $(TEST_DIR)/* $(PKG_DIR)/test/
+	for i in $(PKG_DIR)/examples/*.jl ; do \
+		sed -i -E 's/^include\(\"\.\.\/\.\.\/lib\/jl/include\(\"\.\.\/src/' $$i ; \
+	done
+	
 	cd $(PKG_DIR) && git add --all && git commit -m "Version $(VERSION)" && git push
 	make clean	
 
