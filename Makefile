@@ -58,7 +58,6 @@ pkg: lib test
 	cp -Rf $(CODE_DIR)/* $(PKG_DIR)/src/
 	cp -Rf $(PDF_DIR)/* $(PKG_DIR)/doc/
 	cp -Rf $(TEST_DIR)/* $(PKG_DIR)/test/
-	mkdir $(PKG_DIR)/examples/
 	cp -Rf $(EXAMPLES_DIR)/* $(PKG_DIR)/examples/
 
 	for i in $(PKG_DIR)/test/*.jl ; do \
