@@ -125,8 +125,7 @@ this function is the only difference between the $d=3$ and $d=2$ version of
 \texttt{minimal\_cycles}.
 
 @D minimal\_cycles utilities
-@{
-for lld in 1:lld_cellsnum
+@{for lld in 1:lld_cellsnum
     as = []
     for ld in ld_bounds[lld, :].nzind
         push!(as, (ld, angles_fn(lld, ld)))
@@ -237,7 +236,7 @@ only when the face of index \texttt{f} is visited for the first time.
 @{triangulated_faces = Array{Any, 1}(FE.m)
 
 function face_angle(e::Int, f::Int)
-    if !isdefined(triangulated_faces, f)
+    if !isassigned(triangulated_faces, f)
         @< Triangulate face @>
     end
 

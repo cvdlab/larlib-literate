@@ -17,8 +17,14 @@ an interface of only three functions:
 @O lib/jl/LARLIB.jl
 @{module LARLIB
 
+
+    module Utils
+        include("./utilities.jl")
+    end
+
     module Arrangement
-        @< LAR types @>
+        using LARLIB.Utils
+
         include("./planar_arrangement.jl")
         include("./spatial_arrangement.jl")
     end
@@ -40,47 +46,6 @@ an interface of only three functions:
     end
 end
 @}
-
-%%%%%%%%%%%%%%%
-\section{Standard types}
-
-We define at the top of our module the standard types
-that will be used throughout LAR. As already explained
-in the introduction [ref. \ref{sec:LAR}], LAR needs
-only one bi-dimensional array to store geometry and 
-one or more sparse matrices for topology.
-Julia has already implemented CSC sparse matrices in
-its standard library so we are going to use them.
-
-@D LAR types
-@{const Verts = Array{Float64, 2}
-const Cells = SparseMatrixCSC{Int8, Int}
-const Cell = SparseVector{Int8, Int}
-@}
-
-We used the general name \texttt{Cells}, but
-we are going to use this type also for boundaries.
-
-\subsection{Floating point error}
-\label{sec:floating-point_error}
-
-We stored geometry using 64-bit IEEE floats.
-As it is known, floating point arithmetic is not
-precise and introduces numerical errors.
-Usually this is not an issue\footnote{The \textit{machine epsilon},
-which is the upper bound on the relative error in floating-point 
-arithmetic, for double precision IEEE floating-point numbers is 
-$2^53 \approx 1.11 \times 10^{-16}$.}, but when precision is
-a goal, floating point error must be handled very carefully.
-During the development we encountered several numerical problems
-and we tried various approaches (like normalizing the geometry
-inside the $[0, 1]$ interval for each dimension in order to maximize
-the significand of the floating-point numbers) but most of them turned 
-out to be unstable. So we choose the less orthodox path we could
-possibly take: we set a fixed error and we performed every floating point
-comparison using this error. Examples of this ``tweak'' are to be found in
-\ref{sec:intersect_edges}, \ref{sec:face_int}, \ref{sec:3d_minimal_cycles} and 
-\ref{sec:vertex_equality}.
 
 %%%%%%%%%%%%%%%%%
 \section{Notes on variables names}
