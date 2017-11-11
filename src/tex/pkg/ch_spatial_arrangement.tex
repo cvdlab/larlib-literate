@@ -6,8 +6,7 @@ Here we present the spatial arrangement algorithm.
 It has been explained in the introduction [ref. \ref{sec:spatial_arrangement_overview}].
 
 @O lib/jl/spatial_arrangement.jl
-@{@< spatial\_arrangement imports @>
-@< spatial\_arrangement support functions @>
+@{@< spatial\_arrangement support functions @>
 
 function spatial_arrangement(V::Verts, EV::Cells, FE::Cells)
     vs_num = size(V, 1)
@@ -48,16 +47,6 @@ function spatial_arrangement(V::Verts, EV::Cells, FE::Cells)
     return rV, rEV, rFE, rCF
 end
 
-@}
-
-We include everything that is necessary 
-[ref. \ref{ch:utilities}, \ref{ch:planar_arrangement}, \ref{ch:dimension_travel}].
-
-@D spatial\_arrangement imports
-@{
-include("./utilities.jl")
-include("./planar_arrangement.jl")
-include("./dimension_travel.jl")
 @}
 
 To flatten the 2-cell $\sigma$ on the $x_3=0$ plane,
@@ -117,7 +106,7 @@ from original vertices to new vertices. In the meanwhile
 we built a list of vertices to delete and we delete them 
 as soon as possible.
 
-@D spatial\_arrangement imports
+@D LAR imports
 @{using NearestNeighbors
 @}
 

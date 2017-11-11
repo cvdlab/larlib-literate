@@ -19,10 +19,7 @@ behavior, the algorithm has been implemented as an high-order function\footnote{
 }:
 
 @O lib/jl/minimal_cycles.jl
-@{include("./utilities.jl")
-using TRIANGLE
-
-@< Minimal cycles implementations @>
+@{@< Minimal cycles implementations @>
 
 function minimal_cycles(angles_fn::Function)
 
@@ -283,6 +280,10 @@ check if the cross of the two difference vectors has non-zero length
 and we choose new set of vertices until this condition is satisfied%
 \footnote{We check the length of the cross product against a fixed
 error [ref. \ref{sec:floating-point_error}].}.
+
+@D LAR imports
+@{using TRIANGLE
+@}
 
 @D Triangulate face
 @{vs_idxs = Array{Int64, 1}()

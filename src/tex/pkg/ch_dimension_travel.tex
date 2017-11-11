@@ -10,15 +10,7 @@ the utilities designed to travel
 from $\mathbb{E}^3$ to $\mathbb{E}^2$
 
 @O lib/jl/dimension_travel.jl
-@{@< Imports and aliases @>
-@< Dimension travel functions @>
-@}
-
-We will just use the general utilities
-in here [ref. \ref{ch:utilities}].
-
-@D Imports and aliases
-@{include("./utilities.jl")
+@{@< Dimension travel functions @>
 @}
 %+++++++++++++%
 \subsection{Tests}
@@ -28,7 +20,7 @@ they are collected here.
 
 @O test/jl/dimension_travel.jl
 @{using Base.Test
-include("../../lib/jl/dimension_travel.jl")
+using LARLIB
 
 @< Tests @>
 @}
@@ -59,7 +51,7 @@ end
 
 @D Tests
 @{V = rand(3, 3)
-m = submanifold_mapping(V)
+m = LARLIB.submanifold_mapping(V)
 err = 1e-10 
 @@testset "submanifold_mapping test" begin
     @@test any(map((x,y)->-err<x-y<err, m*inv(m), eye(4)))
@@ -81,7 +73,7 @@ This is achieved by profuse use of bounding boxes and interval trees.
 We use the interval trees implementation of the \texttt{IntervalTrees.jl} package
 \cite{IntervalTrees}.
 
-@D Imports and aliases
+@D LAR imports
 @{using IntervalTrees
 @}
 
