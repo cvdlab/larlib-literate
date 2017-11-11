@@ -21,7 +21,7 @@ behavior, the algorithm has been implemented as an high-order function\footnote{
 @O lib/jl/minimal_cycles.jl
 @{@< Minimal cycles implementations @>
 
-function minimal_cycles(angles_fn::Function)
+function minimal_cycles(angles_fn::Function, verbose=false)
 
     function _minimal_cycles(V::Verts, ld_bounds::Cells)
         @< Function body @>
@@ -38,7 +38,8 @@ Said so, it appears clear that the algorithm must iterate until a $(d-1)$-cell
 marked with 0 or 1 can be found. Near to \texttt{count\_marks} is stored another
 array called \texttt{dir\_marks} that memorizes the direction in which each $(d-1)$-cell
 has been visited the last time (this is useful to determine the direction in which the cell
-must be visited next)
+must be visited next). We also print a progression counter for user feedback 
+if the \texttt{verbose} flag has been set.
 
 @D Function body
 @{lld_cellsnum, ld_cellsnum = size(ld_bounds)
@@ -50,6 +51,11 @@ d_bounds = spzeros(Int8, ld_cellsnum, 0)
 @< minimal\_cycles utilities @>
 
 while (sigma = get_seed_cell()) > 0
+
+    if verbose
+        println(Int(floor(50 * sum(count_marks) / ld_cellsnum)), "%")
+    end
+
     @< Compute a cycle @>
 end
 
@@ -206,7 +212,7 @@ Here we have edges for ($d-2$)-cells and faces for ($d-1$)-cells.
 
     EF = FE'
 
-    FC = minimal_cycles(face_angle)(V, EF)
+    FC = minimal_cycles(face_angle, true)(V, EF)
 
     return -FC'
 end
