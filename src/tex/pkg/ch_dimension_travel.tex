@@ -98,7 +98,7 @@ Bounding box calculation is performed by the \texttt{bbox} utility [ref. \ref{se
 @{IntervalsType = IntervalValue{Float64, Int64}
 boxes1D = Array{IntervalsType, 2}(0, d)
 for fi in 1:faces_num
-    vidxs = (abs(FE[fi:fi,:])*abs(EV))[1,:].nzind
+    vidxs = (abs.(FE[fi:fi,:])*abs.(EV))[1,:].nzind
     intervals = map((l,u)->IntervalsType(l,u,fi), bbox(V[vidxs, :])...)
     boxes1D = vcat(boxes1D, intervals)
 end
