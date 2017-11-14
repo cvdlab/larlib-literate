@@ -21,7 +21,7 @@ function planar_arrangement(V::Verts, EV::Cells, sigma::Cell=spzeros(Int8, 0))
     for i in 1:edgenum
         @< Fragment edge @>
     end
-    @< Put fragmentation results together @>
+    V, EV = rV, rEV
 
     @< Merge coincident vertices @>
     @< Delete edges outside sigma area @>
@@ -212,36 +212,23 @@ fragments created per edge; this counter will also be used later to build the co
 edge matrix with ease.
 
 @D Fragment edge
-@{V, ev = frag_edge(V, EV, i)
+@{v, ev = frag_edge(V, EV, i)
 
 newedges_nums = map(x->x+finalcells_num, collect(1:size(ev, 1)))
-
 edge_map[i] = newedges_nums
-
 finalcells_num += size(ev, 1)
-push!(EVs, ev)
+
+rV, rEV = skel_merge(rV, rEV, v, ev)
 @}
 
 We declare \texttt{EVs} and \texttt{finalcells\_num} as local variables of \texttt{planar\_arrangement}.
 
 @D planar\_arrangement local variables
-@{EVs = Array{Cells, 1}()
+@{rV = zeros(0, 2)
+rEV = spzeros(Int8, 0, 0)
 finalcells_num = 0
 @}
 
-So now we have a \texttt{V} that contains the original points with the points computed with the fragmentation
-and \texttt{EVs}, a list of edges matrices. We must now put the entries of this list together to form an unique
-\texttt{EV} matrix.
-
-@D Put fragmentation results together
-@{EV = spzeros(Int8, finalcells_num, size(V,1))
-newcell_index = 1
-for ev in EVs
-    s = size(ev)
-    EV[newcell_index:newcell_index+s[1]-1, 1:s[2]] = ev
-    newcell_index += s[1]
-end
-@}
 
 %++++++++++++++++%
 \subsection{Tests}
