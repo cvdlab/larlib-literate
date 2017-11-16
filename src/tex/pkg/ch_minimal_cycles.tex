@@ -53,7 +53,7 @@ d_bounds = spzeros(Int8, ld_cellsnum, 0)
 while (sigma = get_seed_cell()) > 0
 
     if verbose
-        println(Int(floor(50 * sum(count_marks) / ld_cellsnum)), "%")
+        print(Int(floor(50 * sum(count_marks) / ld_cellsnum)), "%\r")
     end
 
     @< Compute a cycle @>
