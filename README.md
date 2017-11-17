@@ -1,12 +1,37 @@
-# larlib.jl
-Literate programming approach for LAR in Julia
+# larlib-literate
+Literate programming approach (with [nuweb](http://nuweb.sourceforge.net/)) for LAR in Julia. This is the development repo for the [LARLIB.jl package](https://github.com/cvdlab/LARLIB.jl). If you are looking only for the LARLIB.jl package, this is not the right place.
 
-### Using Makefile
+### How to contribute
+
+Here a quick start for the people who contribute to a literate programming project for the first time:
+
+1. Fork this repo
+
+2. Put your Julia code inside a LaTEX file called `ch_<name>.tex` in the `src/pkg/tex/` folder. The barebone structure of this file must be: 
+```
+\chapter{<fancy name>}
+\label{ch:<name>}
+
+@O lib/jl/<name>.jl
+@{
+    <Julia code>
+@}
+```  
+(refer to `src/pkg/tex/ch_planar_arrangement.tex` for a well
+structured LaTEX+nuweb file)
+
+3. Modify `src/pkg/tex/intro.tex` by appending to it a LaTEX chapter with the high-level description of the algorithm you implemented.
+
+4. Add the line `\input{ch_<name>.tex}` right before `\input{ch_utilities.tex}` inside `src/pkg/tex/book.tex`.
+
+5. Do a pull request. If it gets accepted, we will take care of the insertion of your contribution inside the [LARLIB.jl package repo](https://github.com/cvdlab/LARLIB.jl).
+
+
+### Makefile Usage
 
 `make all` generates Julia scripts and pdf docs of LARLIB and its test units.  
 `make lib_code` generates only the scripts and the tests.  
-`make lib_pdf` generates the pdf docs and the scripts and tests.  
-`make pkg` generates LARLIB and pushes the freshly generated version to [the official package repository of LARLIB](https://github.com/cvdlab/LARLIB.jl). It uses the ./VERSION text file to label the new version. (You need the official repo credentials to do this)
+`make lib_pdf` generates the pdf docs and the scripts and tests.
 
 ### Docker
 
