@@ -1,17 +1,5 @@
 \chapter{Module overview}
 
-We structured our code in a Julia module called \texttt{LARLIB}.
-The common user will mostly care about only three functions:
-\begin{itemize}[noitemsep]
-    \item \texttt{LARLIB.skel\_merge}: Provides the skeletal merge between two
-        1-skeletons or 2-skeletons
-    \item \texttt{LARLIB.spatial\_arrangement}: Arranges one 2-skeleton 
-        in $\mathbb{E}^3$ passed as an array of vertices, and two boundary matrices.
-    \item \texttt{LARLIB.planar\_arrangement}: Arranges one 1-skeleton 
-        in $\mathbb{E}^2$ passed as an array of vertices and a boundary matrix.
-\end{itemize}
-
-
 @O lib/jl/LARLIB.jl
 @{module LARLIB
 
@@ -75,17 +63,40 @@ Here a list of some often used variable names.
 
 \begin{description}[align=right,labelwidth=2em]
     \item [\texttt{V}:]
-        Bi-dimensional array (\texttt{Array\{Float64, 2\}}) that keeps the geometry of a complex.
+        Bi-dimensional array (\texttt{Verts}) that keeps the geometry of a complex.
         Its dimensions are $n \times d$, where $n$ is the number of vertices and $d$ is the dimension
         of the euclidean space in which the complex is embedded.
     \item [\texttt{EV}:]
-        1-boundary. It is a $m \times n$ sparse matrix (\texttt{SparseMatrixCSC\{Int8, Int\}}) 
+        1-boundary. It is a $m \times n$ sparse matrix (\texttt{Cells}) 
         where $m$ is the number of edges and $n$ is the number of vertices. The possible values
         are $0, 1$ and $-1$.
     \item [\texttt{FE}:]
         2-boundary. Same as \texttt{EV}, but faces on the rows and edges on the columns.
     \item [\texttt{CF}:]
         3-boundary. Same as \texttt{EV}, but 3-cells on the rows and faces on the columns.
-    
-
 \end{description}
+
+%%%%%%%%%%%%%%%
+\section{Tests and examples}
+
+There are several unit tests throughout the implementation. They
+are inside the \texttt{test} directory and can be run at once
+by executing \texttt{test/runtests.jl}
+
+@O test/jl/runtests.jl
+@{using LARLIB
+
+include("./planar_arrangement.jl")
+include("./dimension_travel.jl")
+include("./utilities.jl")
+@}
+
+Also general examples of some main functionalities are provided.
+They can be found into \texttt{examples/general\_examples.jl}
+
+@O examples/jl/general_examples.jl
+@{using LARLIB
+
+@< planar\_arrangement general examples @>
+@< spatial\_arrangement general examples @>
+@}

@@ -5,10 +5,11 @@
 \section{Overview}
 \label{sec:planar_arrangement_intro}
 
-The planar arrangement has been already explained in the introduction
-[ref. \ref{sec:planar_arrangement_overview}]. In the implementation 
-we also build and return a map from the original
-edges to the new ones: this is necessary infrastructure to later implement
+Refer to the introduction for algorithm explanation
+[ref. \ref{ch:arrangement_algorithm}].
+In the implementation we also build and return a 
+map from the original edges to the new ones: this 
+is necessary infrastructure to later implement
 boolean operations with ease.
 
 @O lib/jl/planar_arrangement.jl
@@ -39,7 +40,7 @@ The mapping from old edges to new ones is stored into \texttt{edge\_map}.
 @{edge_map = Array{Array{Int, 1}, 1}(edgenum)
 @}
 %++++++++++++++++%
-\subsection{Tests}
+\subsection{Tests and examples}
 Every function responsible for the planar arrangement is coupled by some tests. 
 @O test/jl/planar_arrangement.jl
 @{using Base.Test
@@ -47,7 +48,9 @@ using LARLIB
 
 @< planar\_arrangement support functions tests @>
 @}
-General tests are defined in \ref{ch:planar_arrangement_tests}.
+
+Examples to show the functionalities implemented in this chapter
+are defined at the end of it [ref. \ref{sec:planar_arrangement_examples}].
 
 
 
@@ -1100,3 +1103,83 @@ end
     @@test selector*FE == [0  0  0  0  0  1  1  1 -1]
 end
 @}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+\section{General examples}
+\label{sec:planar_arrangement_examples}
+
+@D planar\_arrangement general examples
+@{function generate_perpendicular_lines(steps::Int, minlen, maxlen)
+    V = zeros(0,2)
+
+    function rec(o, d, s)
+        if s == 0 return end
+
+        a = (maxlen-minlen)*rand() + minlen
+        p = o + a*d
+        V = [V; o; p]
+
+        b = (a-minlen)*rand() + minlen
+        p = o + b*d
+        rec(p, d, s-1)
+
+        b = (a-minlen)*rand() + minlen
+        p = o + b*d
+        rec(p, perpendicular(d), s-1)
+    end
+
+    function perpendicular(vec)
+        v = zeros(size(vec))
+        v[1] = vec[2]
+        v[2] = vec[1]
+        return v
+    end
+
+    rec([0 0], [1 0], steps)
+    rec([0 0], [0 1], steps)
+    vnum = size(V, 1)
+    enum = vnum >> 1
+    EV = spzeros(Int8, enum, vnum)
+    for i in 1:enum
+        EV[i, i*2-1:i*2] = 1
+    end
+    V, EV
+end
+
+
+function generate_random_lines(n, points_range, alphas_range)
+    origins = points_range[1] + (points_range[2]-points_range[1])*rand(n, 2)
+    directions = mapslices(normalize, rand(n, 2) - .5*ones(n, 2), 2)
+    alphas = alphas_range[1] + (alphas_range[2]-alphas_range[1])*rand(n)
+    new_points = Array{Float64, 2}(n, 2)
+    for i in 1:n
+        new_points[i, :] = origins[i, :] + alphas[i]*directions[i, :]
+    end
+    V = [origins; new_points]
+    EV = spzeros(Int8, n, n*2)
+    for i in 1:n
+        EV[i, i] = 1
+        EV[i, n+i] = 1
+    end
+    V, EV
+end
+@}
+
+\vfill
+
+\begin{figure}[p!]
+    \includegraphics[width=\textwidth]{./img/test-lines.pdf}%
+    \caption{Input}
+\end{figure}
+
+
+\begin{figure}[p!]
+    \includegraphics[width=\textwidth]{./img/test-lines-out-compact.pdf}%
+    \caption{Output}
+\end{figure}
+
+\begin{figure}[p!]
+    \includegraphics[width=\textwidth]{./img/test-lines-out.pdf}%
+    \caption{Output (Exploded)}
+\end{figure}

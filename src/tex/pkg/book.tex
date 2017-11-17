@@ -6,18 +6,34 @@
 \usepackage{graphicx}
 \usepackage{enumitem}
 \usepackage{multicol}
+\usepackage{float}
 \usepackage[font=small,labelfont=bf]{caption}
-\hypersetup{colorlinks = false}
+\hypersetup{colorlinks = true}
 
 \author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
-\title{Linear Algebraic Representation}
-
-%\title{Parallel Julia Implementation Of A Geometric Kernel For Boolean Operations Based On The Lar Scheme.}
+\title{LARLIB.jl}
 
 \begin{document}
 
 \frontmatter
 \maketitle
+
+\section*{Book structure}
+
+This book has two parts: Introduction and Implementation.
+
+The first chapter of the Introduction explain what LAR is
+and explores the finalities and goals of LARLIB.jl. The other 
+chapters focus on explaining the algorithms behind LAR.
+
+The Implementation part start with a brief overview of the
+LARLIB.jl module and the conventions used throughout the module.
+The chapters following contain the in-deep
+explanation of the code inside each source file of LARLIB.jl;
+most of the content is paired with test sets: these are
+embedded into the relative chapters. The last chapter
+contains the utilities function used everywhere inside LARLIB.jl.
+
 \tableofcontents
 
 \mainmatter
@@ -33,11 +49,6 @@
 \input{ch_dimension_travel.tex}
 \input{ch_minimal_cycles.tex}
 \input{ch_utilities.tex}
-
-\part{Tests and conclusions}
-
-\input{ch_tests.tex}
-\input{ch_conclusions.tex}
 
 \backmatter
 

@@ -1,45 +1,4 @@
-\chapter{Introduction}
-
-This thesis presents a Julia implementation
-of a novel algorithm to combine two cellular complexes,
-guaranteeing a minimal fragmentation of the resulting
-complex \cite{Paoluzzi}. The algorithm has several applications, of which
-the most common and obvious one are the Boolean operations
-on solids. The whole system is based on LAR \cite{Dicarlo:2014:TNL:2543138.2543294}, 
-a very general and versatile geometrical representation scheme.
-
-\section{Boolean Operations}
-Boolean operations are a set of operations between solids.
-They took two solids and return one.
-The common three operations are\footnote{On the top of them many other 
-operations can be built using De Morgan's Laws. For example,
-the exclusive disjunction (XOR) can be expressed as $(A \cup B) - (A \cap B)$}:
-
-
-\begin{figure}[h]
-    \begin{center}
-        \includegraphics[width=.33\textwidth]{./img/bool-union.pdf}%
-        \includegraphics[width=.33\textwidth]{./img/bool-intersection.pdf}%
-        \includegraphics[width=.33\textwidth]{./img/bool-difference.pdf}%
-
-        $A \cup B$\hspace{.28\textwidth}$A \cap B$\hspace{.28\textwidth}$A - B$
-    \end{center}
-\end{figure}
-
-Boolean operations are very used through computer graphics, both 
-in computer aided design and graphics for entertainment. 
-For this reason, since the dawn of computer graphics,
-several algorithms for Boolean operations 
-have been developed and implemented. But most of them have
-recurrent problems: the big ones are the excessive 
-fragmentation of the cells in output and the huge conceptual
-complexity of the implementations. This happens partially due to the inadequacy 
-of mainstream geometric representations in
-handling non-manifold solids, which are a common output of Boolean
-operations; that's why our algorithm takes heavily advantage 
-from the LAR scheme.
-
-\section{LAR}
+\chapter{LAR}
 \label{sec:LAR}
 
 LAR is a general representation scheme for geometric and topological
@@ -82,7 +41,7 @@ An another concept of LAR used a lot in this thesis is the one of
 a $d$-complex. For example, a 2-skeleton of a 3-complex is the set
 of all the faces of the complex.
 
-\subsection{Historical notes}
+\section{Historical notes}
 \label{sec:history}
 LAR has been developed for several years, in a joint collaboration 
 between Roma Tre University and the University 
@@ -95,7 +54,7 @@ the main core of the Julia implementation.
 
 
 \section{Literate programming}
-This thesis has been written using literate programming.
+This package has been developed using literate programming.
 Literate programming is a programming paradigm in which the program
 logic is explained in natural language and the code is embedded in macros.
 Quoting Donald E. Knuth, the creator of the paradigm: 
@@ -109,6 +68,7 @@ When the goal is to learn and share knowledge, literate programming fits perfect
 
 \section{Julia}
 
+Ths implementation has been made in Julia
 Julia is a relatively new high-level programming language targeted 
 to numerical computing. The project was born back in 2009 and its first
 stable version was released in 2012. As stated in the first blog post
@@ -118,17 +78,21 @@ yet keeps the most serious hackers happy''}, with the speed of C,
 the dynamism of Ruby and the distributed power of Hadoop
 \cite{julia}.
 
-We choose Julia manly because of its elegance and
-simplicity: using a lower level programming language
-would have faded the underlying mathematical elegance
-of the algorithm.
-
-
-
 
 %%%%%%%%%%%%%%%%%%%%%%%
-\chapter{The algorithm}
-\label{ch:algorithm}
+\chapter{The arrangement algorithm}
+\label{ch:arrangement_algorithm}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{./img/cube10x10.pdf}
+    \caption{Arrangement of 2000($=2\times10\times10\times10$) cubes}
+\end{figure}
+
+
+
+
+
 \section{Overview}
 \label{sec:spatial_arrangement_overview}
 The algorithm is based on the concept of recursive problem simplification 
@@ -231,3 +195,22 @@ be shrunk to the dimension of a point.}
 [fig. \ref{img:planar}, d, 2-cells numbered in green; please note that
 cell 2 has cell 1 as an hole].
 
+
+\section{Implementation}
+
+Our implementation of this algorithm does not go over
+$d=3$. It has been split in
+multiple chapters in this book:
+
+\begin{itemize}[noitemsep]
+    \item Spatial Arrangement [ch. \ref{ch:spatial_arrangement}]: 
+        It is the implementation of the ``$1$-cells in $\mathbb{E}^2$'' base case.
+    \item Planar Arrangement [ch. \ref{ch:planar_arrangement}]:
+        This treats the $d=3$ case. 
+    \item Dimension travel [ch. \ref{ch:dimension_travel}]:
+        Here are contained the utilities to travel from a
+        dimension to another.
+    \item Minimal cycles computation [ch. \ref{ch:minimal_cycles}]:
+        This is dedicated to the implementation of the ALGORITHM 1
+        described by Paoluzzi et Al. \cite{Paoluzzi}.
+\end{itemize}
