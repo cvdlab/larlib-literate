@@ -10,6 +10,34 @@
 \usepackage[font=small,labelfont=bf]{caption}
 \hypersetup{colorlinks = true}
 
+%----macros begin---------------------------------------------------------------
+\usepackage{color}
+\usepackage{amsthm}
+
+\def\conv{\mbox{\textrm{conv}\,}}
+\def\aff{\mbox{\textrm{aff}\,}}
+\def\E{\mathbb{E}}
+\def\R{\mathbb{R}}
+\def\Z{\mathbb{Z}}
+\def\tex{\TeX}
+\def\latex{\LaTeX}
+\def\v#1{{\bf #1}}
+\def\p#1{{\bf #1}}
+\def\T#1{{\bf #1}}
+
+\def\vet#1{{\left(\begin{array}{cccccccccccccccccccc}#1\end{array}\right)}}
+\def\mat#1{{\left(\begin{array}{cccccccccccccccccccc}#1\end{array}\right)}}
+
+\def\lin{\mbox{\rm lin}\,}
+\def\aff{\mbox{\rm aff}\,}
+\def\pos{\mbox{\rm pos}\,}
+\def\cone{\mbox{\rm cone}\,}
+\def\conv{\mbox{\rm conv}\,}
+\newcommand{\homog}[0]{\mbox{\rm homog}\,}
+\newcommand{\relint}[0]{\mbox{\rm relint}\,}
+
+%----macros end-----------------------------------------------------------------
+
 \author{Alberto Paoluzzi, Francesco Furiani, Giulio Martella}
 \title{LARLIB.jl}
 
@@ -48,6 +76,8 @@ contains the utilities function used everywhere inside LARLIB.jl.
 \input{ch_planar_arrangement.tex}
 \input{ch_dimension_travel.tex}
 \input{ch_minimal_cycles.tex}
+\input{ch_largrid.tex}
+
 \input{ch_utilities.tex}
 
 \backmatter
