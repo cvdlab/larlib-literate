@@ -13,16 +13,97 @@ is necessary infrastructure to later implement
 boolean operations with ease.
 
 @O lib/jl/planar_arrangement.jl
-@{@< planar\_arrangement support functions @>
+@{using DataStructures
+@< planar\_arrangement support functions @>
 
-function planar_arrangement(V::Verts, EV::Cells, sigma::Cell=spzeros(Int8, 0))
+function frag_edge_channel(in_chan, out_chan)
+    println("Worker[",myid(),"] - start")
+    run_loop = true
+    while run_loop
+        # println("Worker[",myid(),"] - took a job")
+        frag_job = take!(in_chan)
+        id_job = frag_job[1]
+        if id_job != -1
+            V, EV, edgenum = frag_job[2]
+            put!(out_chan, ( edgenum, (frag_edge(V, EV, edgenum )) ) )            
+        else
+            println("Worker[",myid(),"] - suicide")
+            run_loop = false
+        end
+        # println("Worker[",myid(),"]- done a job")
+    end
+end
+
+function planar_arrangement(V::Verts, EV::Cells, sigma::Cell=spzeros(Int8, 0), multiproc=true)
     edgenum = size(EV, 1)
     @< planar\_arrangement local variables @>
 
-    for i in 1:edgenum
-        @< Fragment edge @>
+    in_chan = nothing
+    out_chan = nothing
+
+
+    if (multiproc == true)
+        in_chan = RemoteChannel(()->Channel{Tuple}(0))
+        out_chan = RemoteChannel(()->Channel{Tuple}(0))
     end
+    
+    if (multiproc == true)
+        ordered_dict = SortedDict{Int64,Tuple}()
+
+        @@schedule begin
+            println("Sending data to channels ")
+            for i in 1:edgenum
+                put!(in_chan,(i,(V, EV, i)))
+            end
+            for p in workers()
+                put!(in_chan,(-1,()))
+            end
+            println("Done sending data to channels")
+        end
+
+        for p in workers()
+                println("Starting worker ", p)
+                @@async Base.remote_do(frag_edge_channel, p, in_chan, out_chan)
+        end
+
+        println("Retrieving data from channels. Should be: ", edgenum)
+        for i in 1:edgenum
+            frag_done_job = take!(out_chan)
+            ordered_dict[frag_done_job[1]] = frag_done_job[2]
+        end
+        println("Done retrieving data from channels. Got: ", length(ordered_dict) )
+
+        println("Reassembling data")
+        for (dkey, dval) in ordered_dict
+            println("Reassembling data - ", dkey)
+            i = dkey
+            v, ev = dval
+            newedges_nums = map(x->x+finalcells_num, collect(1:size(ev, 1)))
+            
+            edge_map[i] = newedges_nums
+            
+            finalcells_num += size(ev, 1)
+            
+            rV, rEV = skel_merge(rV, rEV, v, ev)
+        end
+
+        println("Done parallel")
+
+    else
+        for i in 1:edgenum
+            v, ev = frag_edge(V, EV, i)
+            
+            newedges_nums = map(x->x+finalcells_num, collect(1:size(ev, 1)))
+            
+            edge_map[i] = newedges_nums
+            
+            finalcells_num += size(ev, 1)
+            rV, rEV = skel_merge(rV, rEV, v, ev)
+        end
+    end
+    
     V, EV = rV, rEV
+    return V,EV
 
     @< Merge coincident vertices @>
     @< Delete edges outside sigma area @>
@@ -78,29 +159,30 @@ are computed.
 @{function frag_edge(V::Verts, EV::Cells, edge_idx::Int)
     alphas = Dict{Float64, Int}()
     edge = EV[edge_idx, :]
+    verts = V[edge.nzind, :]
     for i in 1:size(EV, 1)
         if i != edge_idx
             intersection = intersect_edges(V, edge, EV[i, :])
             for (point, alpha) in intersection
-                V = [V; point]
-                alphas[alpha] = size(V, 1)
+                verts = [points; point]
+                alphas[alpha] = size(verts, 1)
             end
         end
     end
 
-    alphas[0.0], alphas[1.0] = edge.nzind
+    alphas[0.0], alphas[1.0] = [1, 2]
 
     alphas_keys = sort(collect(keys(alphas)))
     edge_num = length(alphas_keys)-1
-    verts_num = size(V, 1)
-    EV = spzeros(Int8, edge_num, verts_num)
+    verts_num = size(verts, 1)
+    ev = spzeros(Int8, edge_num, verts_num)
 
     for i in 1:edge_num
-        EV[i, alphas[alphas_keys[i]]] = 1
-        EV[i, alphas[alphas_keys[i+1]]] = 1
+        ev[i, alphas[alphas_keys[i]]] = 1
+        ev[i, alphas[alphas_keys[i+1]]] = 1
     end
 
-    V, EV
+    verts, ev
 end
 @}
 %+++++++++++++++++++++++++++++%
