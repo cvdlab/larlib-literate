@@ -58,7 +58,6 @@ using DataStructures
 
 
 
-
 %--------------------------------------------------------------------------------
 \subsection{Generation of cells}
 %--------------------------------------------------------------------------------
@@ -106,10 +105,17 @@ end
 %-------------------------------------------------------------------------------
 
 
-
+\paragraph{Cartesian Product}
+Unary interface to Cartesian product of collections (arrays, tuples, strings, ranges, etc.).
+Enter the input as an array. The output is a sorted array of tuples.
+%-------------------------------------------------------------------------------
+@d Interface to Cartesian Product of arrays, strings, unitRanges, etc.
+@{
 function cart(args)
 	return sort(collect(IterTools.product(args...)))
 end
+@}
+%------------------------------------------------------------------
 
 
 
