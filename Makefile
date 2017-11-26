@@ -53,6 +53,7 @@ pkg_docker:
 	fi
 
 pkg: lib test
+	echo PROVA
 	$(eval VERSION := $(shell cat ./VERSION))
 	git clone https://github.com/cvdlab/larlib.jl $(PKG_DIR)
 	cp -Rf $(CODE_DIR)/* $(PKG_DIR)/src/
