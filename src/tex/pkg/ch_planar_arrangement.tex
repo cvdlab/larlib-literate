@@ -164,7 +164,7 @@ are computed.
         if i != edge_idx
             intersection = intersect_edges(V, edge, EV[i, :])
             for (point, alpha) in intersection
-                verts = [points; point]
+                verts = [verts; point]
                 alphas[alpha] = size(verts, 1)
             end
         end
