@@ -2,6 +2,7 @@
 *.jl.*.cov
 *.jl.mem
 *~
+nw*
 .DS_store
 deps/deps.jl
 #pkg/
