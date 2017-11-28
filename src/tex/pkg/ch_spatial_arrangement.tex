@@ -14,11 +14,9 @@ function frag_face_channel(in_chan, out_chan, V, EV, FE, sp_idx)
     
     run_loop = true
     while run_loop
-        frag_job = take!(in_chan)
-        id_job = frag_job[1]
-        if id_job != -1
-            sigma = frag_job[2]
-            put!(out_chan, (sigma, (frag_face(V, EV, FE, sp_idx, sigma)) ) )            
+        sigma = take!(in_chan)
+        if sigma != -1
+            put!(out_chan, frag_face(V, EV, FE, sp_idx, sigma))
         else
             run_loop = false
         end
@@ -58,19 +56,15 @@ function spatial_arrangement(V::Verts, EV::Cells, FE::Cells; multiproc=false)
     rFE = spzeros(Int8,0,0)
 
     if (multiproc == true)
-        in_chan = RemoteChannel(()->Channel{Tuple}(0))
+        in_chan = RemoteChannel(()->Channel{Int64}(0))
         out_chan = RemoteChannel(()->Channel{Tuple}(0))
-    end
-
-    if (multiproc == true)
-        ordered_dict = SortedDict{Int64,Tuple}()
     
         @@schedule begin
             for sigma in 1:fs_num
-                put!(in_chan,(sigma,(sigma)))
+                put!(in_chan, sigma)
             end
             for p in workers()
-                put!(in_chan,(-1,()))
+                put!(in_chan, -1)
             end
         end
 
@@ -79,14 +73,7 @@ function spatial_arrangement(V::Verts, EV::Cells, FE::Cells; multiproc=false)
         end
 
         for sigma in 1:fs_num
-            frag_done_job = take!(out_chan)
-            ordered_dict[frag_done_job[1]] = frag_done_job[2]
-        end
-
-        for (dkey, dval) in ordered_dict
-            i = dkey
-            nV, nEV, nFE = dval
-            rV, rEV, rFE = skel_merge(rV, rEV, rFE, nV, nEV, nFE)
+            rV, rEV, rFE = skel_merge(rV, rEV, rFE, take!(out_chan)...)
         end
     else
         for sigma in 1:fs_num
