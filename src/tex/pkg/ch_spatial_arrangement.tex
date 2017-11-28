@@ -10,8 +10,84 @@ Refer to the introduction for algorithm explanation
 @{@< spatial\_arrangement support functions @>
 
 
-function frag_face_channel(in_chan, out_chan, V, EV, FE, sp_idx)
-    
+function spatial_arrangement(V::Verts, EV::Cells, FE::Cells; multiproc=false)
+    fs_num = size(FE, 1)
+    sp_idx = spatial_index(V, EV, FE)
+
+    rV = Verts(0,3)
+    rEV = spzeros(Int8,0,0)
+    rFE = spzeros(Int8,0,0)
+
+    if (multiproc == true)
+        @< Run parallel spatial\_arrangement @>
+    else
+        @< Run sequential spatial\_arrangement @>
+    end
+
+    rV, rEV, rFE = merge_vertices(rV, rEV, rFE)
+
+    @< Create 3-cells @>
+
+    return rV, rEV, rFE, rCF
+end
+
+@}
+
+%+++++++++++++++++++++++++++++%
+\subsection{Tests and examples}
+
+Unit tests has yet to be written for this chapter, but general
+examples are available at the end of the chapter [ref. \ref{sec:spatial_arrangement_examples}]
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Parallel approach}
+
+If the user does not require parallelization 
+(using the \texttt{multiproc} argument) the sequential version
+of the implementation starts. This fragments each face sequentially.
+
+@D Run sequential spatial\_arrangement
+@{for sigma in 1:fs_num
+    print(sigma, "/", fs_num, "\r")
+    nV, nEV, nFE = frag_face(V, EV, FE, sp_idx, sigma)
+    rV, rEV, rFE = skel_merge(rV, rEV, rFE, nV, nEV, nFE)
+end
+@}
+
+If instead, parallelization is required, we build the in and out channels,
+we feed the data to the input channel, we dispatch tasks to the workers and then
+read the data from the output channel. We also defined a function
+called \texttt{frag\_face\_channel} to call the \texttt{frag\_face} function
+from every worker with the data inside the output channel.
+
+@D Run parallel spatial\_arrangement
+@{in_chan = RemoteChannel(()->Channel{Int64}(0))
+out_chan = RemoteChannel(()->Channel{Tuple}(0))
+
+@@schedule begin
+    for sigma in 1:fs_num
+        put!(in_chan, sigma)
+    end
+    for p in workers()
+        put!(in_chan, -1)
+    end
+end
+
+for p in workers()
+    @@async Base.remote_do(
+        frag_face_channel, p, in_chan, out_chan, V, EV, FE, sp_idx)
+end
+
+for sigma in 1:fs_num
+    rV, rEV, rFE = skel_merge(rV, rEV, rFE, take!(out_chan)...)
+end
+@}
+
+@D spatial\_arrangement support functions
+@{function frag_face_channel(in_chan, out_chan, V, EV, FE, sp_idx)
     run_loop = true
     while run_loop
         sigma = take!(in_chan)
@@ -22,12 +98,21 @@ function frag_face_channel(in_chan, out_chan, V, EV, FE, sp_idx)
         end
     end
 end
+@}
 
 
-function frag_face(V, EV, FE, sp_idx, sigma)
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Face fragmentation}
+
+To fragment a $\sigma$ 2-cell, we flat it out on the $x_3=0$ plane,
+we launch the planar arrangement and then bring the fragmented $\sigma$
+to its original place.
+
+@D spatial\_arrangement support functions
+@{function frag_face(V, EV, FE, sp_idx, sigma)
     vs_num = size(V, 1)
-    es_num = size(EV, 1)
-    fs_num = size(FE, 1)
 
     sigmavs = (abs.(FE[sigma:sigma,:])*abs.(EV))[1,:].nzind 
     sV = V[sigmavs, :]
@@ -45,57 +130,12 @@ function frag_face(V, EV, FE, sp_idx, sigma)
     nV = [nV zeros(nvsize) ones(nvsize)]*inv(M)[:, 1:3]
     return nV, nEV, nFE
 end
-
-
-function spatial_arrangement(V::Verts, EV::Cells, FE::Cells; multiproc=false)
-    fs_num = size(FE, 1)
-    sp_idx = spatial_index(V, EV, FE)
-
-    rV = Verts(0,3)
-    rEV = spzeros(Int8,0,0)
-    rFE = spzeros(Int8,0,0)
-
-    if (multiproc == true)
-        in_chan = RemoteChannel(()->Channel{Int64}(0))
-        out_chan = RemoteChannel(()->Channel{Tuple}(0))
-    
-        @@schedule begin
-            for sigma in 1:fs_num
-                put!(in_chan, sigma)
-            end
-            for p in workers()
-                put!(in_chan, -1)
-            end
-        end
-
-        for p in workers()
-            @@async Base.remote_do(frag_face_channel, p, in_chan, out_chan, V, EV, FE, sp_idx)
-        end
-
-        for sigma in 1:fs_num
-            rV, rEV, rFE = skel_merge(rV, rEV, rFE, take!(out_chan)...)
-        end
-    else
-        for sigma in 1:fs_num
-            print(sigma, "/", fs_num, "\r")
-            nV, nEV, nFE = frag_face(V, EV, FE, sp_idx, sigma)
-            rV, rEV, rFE = skel_merge(rV, rEV, rFE, nV, nEV, nFE)
-        end
-    end
-
-    rV, rEV, rFE = merge_vertices(rV, rEV, rFE)
-
-    @< Create 3-cells @>
-
-    return rV, rEV, rFE, rCF
-end
-
 @}
 
-To flatten the 2-cell $\sigma$ on the $x_3=0$ plane,
-we build a linear transformation matrix with the
+To flattening of $\sigma$ on the $x_3=0$ plane,
+is performed by building a linear transformation matrix with the
 \texttt{submanifold\_mapping} utility [ref. \ref{sec:submanifold_mapping}],
-we transform the geometry and we intersect every cell in $\mathcal{I}(\sigma)$
+transforming the geometry and intersecting every cell in $\mathcal{I}(\sigma)$
 [ref. \ref{sec:spatial_arrangement_overview}]
 with the $x_3=0$ plane using \texttt{face\_int} [ref. \ref{sec:face_int}].
 
@@ -113,12 +153,6 @@ end
 
 sV = sV[:, 1:2]
 @}
-
-%+++++++++++++++++++++++++++++%
-\subsection{Tests and examples}
-
-Unit tests has yet to be written for this chapter, but general
-examples are available at the end of the chapter [ref. \ref{sec:spatial_arrangement_examples}]
 
 
 
