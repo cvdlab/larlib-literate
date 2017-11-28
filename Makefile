@@ -60,13 +60,6 @@ pkg: lib test
 	cp -Rf $(PDF_DIR)/* $(PKG_DIR)/doc/
 	cp -Rf $(TEST_DIR)/* $(PKG_DIR)/test/
 	cp -Rf $(EXAMPLES_DIR)/* $(PKG_DIR)/examples/
-
-	for i in $(PKG_DIR)/test/*.jl ; do \
-		sed -i -E 's/^include\(\"\.\.\/\.\.\/lib\/jl/include\(\"\.\.\/src/' $$i ; \
-	done
-	for i in $(PKG_DIR)/examples/*.jl ; do \
-		sed -i -E 's/^include\(\"\.\.\/\.\.\/lib\/jl/include\(\"\.\.\/src/' $$i ; \
-	done
 	
 	cd $(PKG_DIR) && git add --all && git commit -m "Version $(VERSION)" && git push
 	make clean	
