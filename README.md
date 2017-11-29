@@ -13,8 +13,13 @@ Here a quick start for the people who contribute to a literate programming proje
 \label{ch:<name>}
 
 @O lib/jl/<name>.jl
-@{
-    <Julia code>
+@{<Julia code>
+@}
+
+@O test/jl/<name>.jl
+@{using Base.Test
+using LARLIB
+<Julia unit tests>
 @}
 ```  
 (refer to `src/pkg/tex/ch_planar_arrangement.tex` for a well
@@ -24,9 +29,11 @@ structured LaTEX+nuweb file)
 
 4. Add the line `\input{ch_<name>.tex}` right before `\input{ch_utilities.tex}` inside `src/pkg/tex/book.tex`.
 
-5. Add the line `include("./<name>.jl")` anywhere inside the `@O lib/jl/LARLIB.jl` nuweb macro defined in `src/pkg/tex/ch_larlib.tex`.
+5. Add the line `include("./<name>.jl")` anywhere inside the `@O lib/jl/LARLIB.jl` nuweb macro defined at the beginning of `src/pkg/tex/ch_larlib.tex`.
 
-6. Do a pull request. If it gets accepted, we will take care of the insertion of your contribution inside the [LARLIB.jl package repo](https://github.com/cvdlab/LARLIB.jl).
+6. Add the line `include("./<name>.jl")` anywhere inside the `@O test/jl/runtests.jl` nuweb macro defined at the bottom of `src/pkg/tex/ch_larlib.tex`.
+
+7. Do a pull request. If it gets accepted, we will take care of the insertion of your contribution inside the [LARLIB.jl package repo](https://github.com/cvdlab/LARLIB.jl).
 
 
 ### Makefile Usage
