@@ -13,72 +13,16 @@ is necessary infrastructure to later implement
 boolean operations with ease.
 
 @O lib/jl/planar_arrangement.jl
-@{using DataStructures
-@< planar\_arrangement support functions @>
-
-function frag_edge_channel(in_chan, out_chan, V, EV)
-    run_loop = true
-    while run_loop
-        edgenum = take!(in_chan)
-        if edgenum != -1
-            put!(out_chan, (edgenum, frag_edge(V, EV, edgenum)))
-        else
-            run_loop = false
-        end
-    end
-end
+@{@< planar\_arrangement support functions @>
 
 function planar_arrangement(V::Verts, EV::Cells, sigma::Cell=spzeros(Int8, 0); multiproc=false)
     edgenum = size(EV, 1)
     @< planar\_arrangement local variables @>
 
     if (multiproc == true)
-        in_chan = RemoteChannel(()->Channel{Int64}(0))
-        out_chan = RemoteChannel(()->Channel{Tuple}(0))
-
-        ordered_dict = SortedDict{Int64,Tuple}()
-
-        @@schedule begin
-            for i in 1:edgenum
-                put!(in_chan,i)
-            end
-            for p in workers()
-                put!(in_chan,-1)
-            end
-        end
-
-        for p in workers()
-            @@async Base.remote_do(frag_edge_channel, p, in_chan, out_chan, V, EV)
-        end
-
-        for i in 1:edgenum
-            frag_done_job = take!(out_chan)
-            ordered_dict[frag_done_job[1]] = frag_done_job[2]
-        end
-
-        for (dkey, dval) in ordered_dict
-            i = dkey
-            v, ev = dval
-            newedges_nums = map(x->x+finalcells_num, collect(1:size(ev, 1)))
-            
-            edge_map[i] = newedges_nums
-            
-            finalcells_num += size(ev, 1)
-            
-            rV, rEV = skel_merge(rV, rEV, v, ev)
-        end
-
+        @< Run parallel planar\_arrangement @>
     else
-        for i in 1:edgenum
-            v, ev = frag_edge(V, EV, i)
-            
-            newedges_nums = map(x->x+finalcells_num, collect(1:size(ev, 1)))
-            
-            edge_map[i] = newedges_nums
-            
-            finalcells_num += size(ev, 1)
-            rV, rEV = skel_merge(rV, rEV, v, ev)
-        end
+        @< Run sequential planar\_arrangement @>
     end
     
     V, EV = rV, rEV
@@ -113,10 +57,93 @@ are defined at the end of it [ref. \ref{sec:planar_arrangement_examples}].
 
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Parallel approach}
+
+The sequential implementation of the algorithm is straightforward:
+fragment each edge in order and update the \texttt{edge\_map} at each step.
+
+@D Run sequential planar\_arrangement
+@{for i in 1:edgenum
+    v, ev = frag_edge(V, EV, i)
+
+    newedges_nums = map(x->x+finalcells_num, collect(1:size(ev, 1)))
+
+    edge_map[i] = newedges_nums
+
+    finalcells_num += size(ev, 1)
+    rV, rEV = skel_merge(rV, rEV, v, ev)
+end
+@}
 
 
+The parallel version is very similar to the one presented for the Spatial Arrangement
+[ref. \ref{ch:spatial_arrangement}]. The only difference here is that we need to recompose the
+data in order, so we use a \texttt{SortedDict} to store the data from of the out channel.
+The \texttt{SortedDict} data structure is provided by the \texttt{DataStructures} Julia package.
 
+@D LAR imports
+@{using DataStructures
+@}
 
+The \texttt{frag\_edge\_channel} function is the job distributed to the workers
+that fetch data from the in channel and feeds the results of \texttt{frag\_edge}
+to the out channel.
+
+@D planar\_arrangement support functions
+@{function frag_edge_channel(in_chan, out_chan, V, EV)
+    run_loop = true
+    while run_loop
+        edgenum = take!(in_chan)
+        if edgenum != -1
+            put!(out_chan, (edgenum, frag_edge(V, EV, edgenum)))
+        else
+            run_loop = false
+        end
+    end
+end
+@}
+
+The definition of the channels, the set up of the workers, the dispatch,
+the output data fetch and the reconstruction of the fragmented \texttt{V} and \texttt{EV} (with
+relative \texttt{edge\_map}) is implemented here:
+
+@D Run parallel planar\_arrangement
+@{in_chan = RemoteChannel(()->Channel{Int64}(0))
+out_chan = RemoteChannel(()->Channel{Tuple}(0))
+
+ordered_dict = SortedDict{Int64,Tuple}()
+
+@@schedule begin
+    for i in 1:edgenum
+        put!(in_chan,i)
+    end
+    for p in workers()
+        put!(in_chan,-1)
+    end
+end
+
+for p in workers()
+    @@async Base.remote_do(frag_edge_channel, p, in_chan, out_chan, V, EV)
+end
+
+for i in 1:edgenum
+    frag_done_job = take!(out_chan)
+    ordered_dict[frag_done_job[1]] = frag_done_job[2]
+end
+
+for (dkey, dval) in ordered_dict
+    i = dkey
+    v, ev = dval
+    newedges_nums = map(x->x+finalcells_num, collect(1:size(ev, 1)))
+    
+    edge_map[i] = newedges_nums
+    
+    finalcells_num += size(ev, 1)
+    
+    rV, rEV = skel_merge(rV, rEV, v, ev)
+end
+@}
 
 
 
