@@ -528,7 +528,9 @@ The \texttt{larModelProduct} function takes as input a pair of LAR models and re
     for v in keys(vertices)
         push!(vertexmodel, v)
     end
-    return (hcat(vertexmodel...), cells)
+    verts = hcat(vertexmodel...)
+    cells = [[v for v in cell] for cell in cells]
+    return (verts, cells)
 end
 
 function larModelProduct(twoModels)
