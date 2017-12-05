@@ -8,6 +8,7 @@ PDF_DIR = $(DOC_DIR)/pdf
 CODE_DIR = ./lib/jl
 TEST_DIR = ./test/jl
 EXAMPLES_DIR = ./examples/jl
+LIBHELP_DIR = ./lib-utilities
 
 PKG_DIR = ./pkg
 
@@ -53,15 +54,15 @@ pkg_docker:
 	fi
 
 pkg: lib test
-	echo PROVA
 	$(eval VERSION := $(shell cat ./VERSION))
 	git clone https://github.com/cvdlab/larlib.jl $(PKG_DIR)
 	cp -Rf $(CODE_DIR)/* $(PKG_DIR)/src/
 	cp -Rf $(PDF_DIR)/* $(PKG_DIR)/doc/
 	cp -Rf $(TEST_DIR)/* $(PKG_DIR)/test/
 	cp -Rf $(EXAMPLES_DIR)/* $(PKG_DIR)/examples/
-	
-	cd $(PKG_DIR) && git add --all && git commit -m "Version $(VERSION)" && git push
+	cp -Rf $(LIBHELP_DIR)/* $(PKG_DIR)
+
+	cd $(PKG_DIR) && git add --all && git commit -m "Version $(VERSION)" && git tag -a v$(VERSION) -m "Version $(VERSION)" && git push
 	make clean	
 
 
@@ -90,7 +91,7 @@ docker-pkg:
 	else \
 		if test -z "$$PUSH_AUTHOR_NAME"; then PUSH_AUTHOR_NAME=LarLib; fi; \
 		if test -z "$$PUSH_AUTHOR_EMAIL"; then PUSH_AUTHOR_EMAIL=larlib@cvlab.org; fi; \
-		docker run --rm -e "INDOCKER=1" \
+		docker run -e "INDOCKER=1" \
 			-e "PUSH_CREDENTIALS=$$PUSH_CREDENTIALS" \
 			-e "GIT_AUTHOR_NAME=$$PUSH_AUTHOR_NAME" -e "GIT_AUTHOR_EMAIL=$$PUSH_AUTHOR_EMAIL" \
 			-v $(PWD):/data furio/larlib-literate:latest make pkg_docker; \
