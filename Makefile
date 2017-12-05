@@ -61,7 +61,8 @@ pkg: lib test
 	cp -Rf $(TEST_DIR)/* $(PKG_DIR)/test/
 	cp -Rf $(EXAMPLES_DIR)/* $(PKG_DIR)/examples/
 	cp -Rf $(LIBHELP_DIR)/* $(PKG_DIR)
-
+	cp ./VERSION $(PKG_DIR)/
+	
 	cd $(PKG_DIR) && git add --all && git commit -m "Version $(VERSION)" && git tag -a v$(VERSION) -m "Version $(VERSION)" && git push
 	make clean	
 
