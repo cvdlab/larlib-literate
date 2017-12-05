@@ -1,5 +1,6 @@
 # larlib-literate
-Literate programming approach (with [nuweb](http://nuweb.sourceforge.net/)) for LAR in Julia. This is the development repo for the [LARLIB.jl package](https://github.com/cvdlab/LARLIB.jl). If you are looking only for the LARLIB.jl package, this is not the right place.
+Literate programming approach (with [nuweb](http://nuweb.sourceforge.net/)) for LAR in Julia. This is the development repo for the [LARLIB.jl package](https://github.com/cvdlab/LARLIB.jl). 
+If you are looking only for the LARLIB.jl package, this is not the right place.
 
 ### How to contribute
 
