@@ -93,12 +93,47 @@ Hence in 3D we may consider up to $16=4\times 4$ binary incidence relations betw
 {\small\begin{verbatim}
 EV = [[1,2],[3,4],[5,6],[7,8],[9,10],[11,12],[1,3],[2,4],[5,7],[6,8],
       [9,11],[10,12],[1,5],[2,6],[3,7],[4,8],[5,9],[6,10],[7,11],[8,12]]
-\end{verbatim}
-}
-where \texttt{FV[4] = [7,8]} simply means the 1-cell (edge) indexed by 4 is incident to vertices indexed by 7 and 8. Analogous readings hold for all other binary relationships.
+\end{verbatim}}
+\noindent where \texttt{EV[4] = [7,8]} simply means the 1-cell (edge) indexed by 4 is incident to vertices indexed by 7 and 8. Analogous readings hold for all other binary relationships.
 
 
 \paragraph{Chain bases}
+
+A chain complex is a sequence of linear boundary transformations between a sequence of linear spaces of chains. The set of $p$-cells, considered as the set of singleton $p$-chains, provides the basis for generating the whole set of $p$-chains via linear combinations with the elements of an additive group, normally either $(+,\Z_2=\{0,1\})$ or $(+,\Z_3\simeq\{-1,0,1\})$.
+
+LAR describes the bases of $p$-chains $(0\leq p\leq 3)$ using sparse characteristic matrices  $M_0, M_1, M_2, M_3$ derived from the relations \texttt{VV}, \texttt{EV}, \texttt{FV}, \texttt{CV}, respectively  (see~\cite{Dicarlo:2014:TNL:2543138.2543294}).
+Their compressed-sparse-column matrices are generated as follows:
+{\small\begin{verbatim}
+cscEV = characteristicMatrix(EV)
+cscFV = characteristicMatrix(FV)
+cscCV = characteristicMatrix(CV)
+\end{verbatim}}
+
+The characteristic matrix \texttt{cscFV} for the incidence \texttt{FV} of the complex in Figure~\ref{fig:intro-1} is given in Figure~\ref{fig:intro-0}
+
+\begin{figure}[htbp] %  figure placement: here, top, bottom, or page
+\begin{center}
+\begin{minipage}[c]{0.5\textwidth}
+\small\begin{verbatim}
+julia> full(characteristicMatrix(FV))
+11x12 Array{Int8,2}:
+ 1  1  1  1  0  0  0  0  0  0  0  0
+ 0  0  0  0  1  1  1  1  0  0  0  0
+ 0  0  0  0  0  0  0  0  1  1  1  1
+ 1  1  0  0  1  1  0  0  0  0  0  0
+ 0  0  1  1  0  0  1  1  0  0  0  0
+ 0  0  0  0  1  1  0  0  1  1  0  0
+ 0  0  0  0  0  0  1  1  0  0  1  1
+ 1  0  1  0  1  0  1  0  0  0  0  0
+ 0  1  0  1  0  1  0  1  0  0  0  0
+ 0  0  0  0  1  0  1  0  1  0  1  0
+ 0  0  0  0  0  1  0  1  0  1  0  1
+\end{verbatim}
+\end{minipage}
+\end{center}
+   \caption{Dense characteristic matrix \texttt{cscFV} for the incidence \texttt{FV} of the small complex in Figure~\ref{fig:intro-1}}
+   \label{fig:intro-0}
+\end{figure}
 
 \paragraph{Chain transformations}
 
@@ -114,7 +149,7 @@ The \texttt{V} array, of Julia type \texttt{Array\{Float64,2\}} contains, by col
 \subsection{Examples}
 \label{sec:examples}
 
-\paragraph{3D cubical mesh}
+\begin{example}[3D cubical mesh]
 
 A very simple example of 3D cubical mesh is given here. When considered as a solid model,  a \emph{boundary representation} would be normally applied to it. If used as the domain of a simulation, a \emph{decompositive representation} would be usually chosen. Both can be derived by the LAR scheme, given below. A picture of the mesh with numbered $p$-cells in different colors ($0\leq p\leq 3$) is shown in Figure~\ref{fig:intro-1}.
 
@@ -157,9 +192,10 @@ julia> print(CV)
 Array{Int64,1}[[1,2,3,4,5,6,7,8],[5,6,7,8,9,10,11,12]]
 \end{verbatim}
 }
+\end{example}
 
-
-\paragraph{Input/output of space arrangement algorithm}
+\begin{example}[Input/output of space arrangement algorithm]
+\end{example}
 
 
 
