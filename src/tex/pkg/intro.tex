@@ -71,6 +71,98 @@ Data validity is easy to test by checking for satisfaction of basic equations $\
 
 
 
+\section{Data structures and transformations}
+\label{sec:datastructures}
+
+In this section we introduce the basic data objects of the \texttt{LARLIB} module,
+i.e., incidence relations, chain bases, and chain transformations. The ground concept of a \emph{chain complex} is a cellular decomposition of a $d$-space into sets of connected $p$-cells ($0\leq p\leq\ d$). 
+
+\subsection{Data structures}
+\label{sec:data} All data structures are either arrays, or sparse arrays, or arrays of arrays. We introduce here some stardard notations, largely used in the following. In particular, we use the symbols \texttt{V}, \texttt{E}, \texttt{F}, \texttt{C}, to denote the arrays of \emph{vertices}, \emph{edges}, \emph{faces}, and \emph{cells},  i.e., to denote the 0-, 1-, 2-, and 3-cells, respectively. 
+
+With some abuse of language, each \emph{$p$-cell} or \emph{elementary $p$-chain} is represented as the \texttt{Array\{Int64,1\}} of the integer indices of its $(p-1)$-faces, either signed or non-signed depending on the consideration of the orientations of the cells.
+
+
+\paragraph{Incidence relations}
+
+By definition of cellular complex, a $q$-cell $\tau$ and a $r$-cell $\sigma$, with $q\leq r$, either do not intersect or share a common \emph{$p$-face} ($0\leq p\leq q,r$).
+
+Hence in 3D we may consider up to $16=4\times 4$ binary incidence relations between $V,E,F,C$, denoted respectively \texttt{VV}, \texttt{VE}, \texttt{VF}, \texttt{VC}, and
+\texttt{EV}, \texttt{EE}, \texttt{EF}, \texttt{EC}, etc, etc.  Such incidence relations are represented in Julia as \texttt{Array\{Array\{Int64,1\},1\}} of integer indices. With reference to the cellular complex in Figure~\ref{fig:intro-1}:
+
+{\small\begin{verbatim}
+EV = [[1,2],[3,4],[5,6],[7,8],[9,10],[11,12],[1,3],[2,4],[5,7],[6,8],
+      [9,11],[10,12],[1,5],[2,6],[3,7],[4,8],[5,9],[6,10],[7,11],[8,12]]
+\end{verbatim}
+}
+where \texttt{FV[4] = [7,8]} simply means the 1-cell (edge) indexed by 4 is incident to vertices indexed by 7 and 8. Analogous readings hold for all other binary relationships.
+
+
+\paragraph{Chain bases}
+
+\paragraph{Chain transformations}
+
+\paragraph{Geometric embedding}
+
+The \texttt{V} array, of Julia type \texttt{Array\{Float64,2\}} contains, by columns, the coordinates of position vectors of $d$-points associated to \emph{vertices} (0-cells) of the cellular complex $X \subseteq \R^d$. Hence \texttt{V} specifies the geometric embedding of $X$.
+
+
+\subsection{Data transformations}
+\label{sec:transformations}
+
+
+\subsection{Examples}
+\label{sec:examples}
+
+\paragraph{3D cubical mesh}
+
+A very simple example of 3D cubical mesh is given here. When considered as a solid model,  a \emph{boundary representation} would be normally applied to it. If used as the domain of a simulation, a \emph{decompositive representation} would be usually chosen. Both can be derived by the LAR scheme, given below. A picture of the mesh with numbered $p$-cells in different colors ($0\leq p\leq 3$) is shown in Figure~\ref{fig:intro-1}.
+
+%-------------------------------------------------------------------------------
+@d LAR decompositive representation 
+@{using LARVIEW
+
+# Simple mesh of two 3-cuboids
+V,cells = LARLIB.larCuboids([2,1,1],true)
+VV,EV,FV,CV = cells
+larmodel = V,(VV,EV,FV,CV)
+LARVIEW.viewnumbered(larmodel)
+@}
+%-------------------------------------------------------------------------------
+
+\begin{figure}[htbp] %  figure placement: here, top, bottom, or page
+   \centering
+   \includegraphics[width=\textwidth]{img/intro-1.pdf} 
+   \caption{A cubical 3-mesh with two 3-cells. Notice that $p$-cells of index 1 are also indexed by 0 in the picture, due to (current) incompatibilities by the \texttt{pyplasm} library, used for mesh drawing, and Julia.}
+   \label{fig:intro-1}
+\end{figure}
+
+The geometric embedding of the grid, given the array $V$ of vertices, and the indexing of $p$-cells as subsets of vertices are given below.
+
+{\small\begin{verbatim}
+julia> V
+3�12 Array{Int64,2}:
+ 0  0  0  0  1  1  1  1  2  2  2  2
+ 0  0  1  1  0  0  1  1  0  0  1  1
+ 0  1  0  1  0  1  0  1  0  1  0  1
+julia> print(VV)
+Array{Int64,1}[[1],[2],[3],[4],[5],[6],[7],[8],[9],[10],[11],[12]]
+julia> print(EV)
+Array{Int64,1}[[1,2],[3,4],[5,6],[7,8],[9,10],[11,12],[1,3],[2,4],[5,7],
+[6,8],[9,11],[10,12],[1,5],[2,6],[3,7],[4,8],[5,9],[6,10],[7,11],[8,12]]
+julia> print(FV)
+Array{Int64,1}[[1,2,3,4],[5,6,7,8],[9,10,11,12],[1,2,5,6],[3,4,7,8],
+[5,6,9,10],[7,8,11,12],[1,3,5,7],[2,4,6,8],[5,7,9,11],[6,8,10,12]]
+julia> print(CV)
+Array{Int64,1}[[1,2,3,4,5,6,7,8],[5,6,7,8,9,10,11,12]]
+\end{verbatim}
+}
+
+
+\paragraph{Input/output of space arrangement algorithm}
+
+
+
 \section{Historical notes}
 \label{sec:history}
 LAR has been developed for several years, in a joint collaboration 
