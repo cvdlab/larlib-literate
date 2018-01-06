@@ -77,14 +77,14 @@ julia> julia> full(boundary1(EV))
   0   0   0   0   0  -1   0   0   0   0   1   0   0   0   0   0   0   0   1   0
   0   0   0   0   0   1   0   0   0   0   0   1   0   0   0   0   0   0   0   1
 \end{verbatim}}
-   \caption{Dense characteristic matrix \texttt{cscFV} for the incidence \texttt{FV} of the small complex in Figure~\ref{fig:intro-1}}
+   \caption{Dense signed $[\partial_1]$ matrix $\partial_1$ for the small complex in Figure~\ref{fig:intro-1}}
    \label{fig:intro-2}
 \end{figure}
 
 
 \paragraph{Boundary matrix $[\partial_2] = [\delta_1]^\top$}
 
-The matrix of the unsigned operator $\partial_2$ is computed here, according to the method introduced in~\cite{}. In particular, the two sparse incidence matrices \texttt{cscFV} and \texttt{cscEV} are first computed, and the product matrix in \texttt{temp} codifies, for any pair $(i,j)$ of indices the number of vertices shared between the  $i$-th 2-cell and the $j$-th 1-cell; when this number is equal to 2, the $j$-th 1-cell belongs to the boundary of the $i$-th 2-cell, so providing a triple $(i,j,1)$ to be inserted in the COO representation of \texttt{sp_uboundary2}, and finally in its CSC representation.
+The matrix of the unsigned operator $\partial_2$ is computed here, according to the method introduced in~\cite{}. In particular, the two sparse incidence matrices \texttt{cscFV} and \texttt{cscEV} are first computed, and the product matrix in \texttt{temp} codifies, for any pair $(i,j)$ of indices the number of vertices shared between the  $i$-th 2-cell and the $j$-th 1-cell; when this number is equal to 2, the $j$-th 1-cell belongs to the boundary of the $i$-th 2-cell, so providing a triple $(i,j,1)$ to be inserted in the COO representation of \texttt{sp\_uboundary2}, and finally in its CSC representation.
 
 %-------------------------------------------------------------------------------
 @D Computation of (unsigned) sparse boundary $C_2 \to C_1$
@@ -111,24 +111,112 @@ end
 %-------------------------------------------------------------------------------
 
 
+\paragraph{Signed boundary matrix $[\partial_2] = [\delta_1]^\top$}
+
+Here we build a possible value for $[\partial_2] \in \{-1,0,1\}^m_n$. By rows, it describes each elementary 2-chain (2-cell) as a signed 1-cycle (1-chain without boundary). Since no standard orientation exists for $p$-cycles in $d$-space ($p < d$),
+\emph{by convention} we compute each 1-cycle oriented as its first 1-cell, i.e. going in the direction from the second to the first 0-cell of it.
+
+The construction algorithm may be split into two phases: the initialization and the loop indexed on faces. In turn, the faces loop calls the function \texttt{columninfo(col)}, deputed to store a quadruple of data providing a data structure to set properly (in sign) each 1-cell of a 1-cycle.
+
+\subparagraph{Initialization}
+%-------------------------------------------------------------------------------
+@D Initialization of the (signed) sparse boundary
+@{
+# Initialization
+function boundary2(FV,EV)
+    sp_u_boundary2 = uboundary2(FV,EV)
+    larEV = characteristicMatrix(EV)
+    # unsigned incidence relation
+    FE = [findn(sp_u_boundary2[f,:]) for f=1:size(sp_u_boundary2,1) ]
+    I,J,V = Int64[],Int64[],Int8[]
+    vedges = [findn(larEV[:,v]) for v=1:size(larEV,2)]
+@}
+%-------------------------------------------------------------------------------
+
+\subparagraph{Local storage}
+A local function \texttt{columninfo} is used to store the needed data structure into a temporary array \texttt{infos}
+
+%-------------------------------------------------------------------------------
+@D Local temporary storage function
+@{
+# Local storage
+function columninfo(col)
+    infos[1,col] = 1
+    infos[2,col] = next
+    infos[3,col] = EV[next][1]
+    infos[4,col] = EV[next][2]
+    vpivot = infos[4,col]
+end
+@}
+%-------------------------------------------------------------------------------
+
+\subparagraph{Loop on faces}
+%-------------------------------------------------------------------------------
+@D Loop on faces to construct the (signed) sparse boundary
+@{
+# Loop on faces
+for f=1:length(FE)
+    fedges = Set(FE[f])
+    next = pop!(fedges)
+    col = 1
+    vpivot = infos[4,col]
+    infos = zeros(Int64,(4,length(FE[f])))
+    while fedges != Set()
+        nextedge = intersect(fedges, Set(vedges[vpivot]))
+        fedges = setdiff(fedges,nextedge)
+        next = pop!(nextedge)
+        col += 1
+        vpivot = columninfo(col)
+        if vpivot == infos[4,col-1]
+            infos[3,col],infos[4,col] = infos[4,col],infos[3,col]
+            infos[1,col] = -1
+            vpivot = infos[4,col]
+        end
+    end
+    for j=1:size(infos,2)
+        push!(I, f)
+        push!(J, infos[2,j])
+        push!(V, infos[1,j])
+    end
+end
+@}
+%-------------------------------------------------------------------------------
+
+The assembly of the whole function \texttt{boundary2(FV,EV)} is given below.
+
+\subparagraph{Assembly signed boundary construction}
+
+%-------------------------------------------------------------------------------
+@D Computation of (signed) sparse boundary $C_2 \to C_1$
+@{
+@< Local temporary storage function @>
+@< Initialization of the (signed) sparse boundary @>
+    @< Loop on faces @>
+    spboundary2 = sparse(I,J,V)
+    return spboundary2
+end
+@}
+%-------------------------------------------------------------------------------
+
 
 
 @O lib/jl/LARLIB.jl
 @{module LARLIB
 
-    @< LAR imports @>
-    @< LAR types @>
+	@< LAR imports @>
+	@< LAR types @>
 	@< Computation of sparse characteristic matrices $M_p$ @>
 	@< Computation of (signed) sparse boundary $C_1 \to C_0$ @>
 	@< Computation of (unsigned) sparse boundary $C_2 \to C_1$ @>
+	@< Computation of (signed) sparse boundary $C_2 \to C_1$ @>
 
-    include("./utilities.jl")
-    include("./minimal_cycles.jl")
-    include("./dimension_travel.jl")
-    include("./planar_arrangement.jl")
-    include("./spatial_arrangement.jl")
-    include("./largrid.jl")
-    
+	include("./utilities.jl")
+	include("./minimal_cycles.jl")
+	include("./dimension_travel.jl")
+	include("./planar_arrangement.jl")
+	include("./spatial_arrangement.jl")
+	include("./largrid.jl")
+	
 end
 @}
 
