@@ -152,7 +152,7 @@ end
 
 \subparagraph{Loop on faces}
 %-------------------------------------------------------------------------------
-@D Loop on faces to construct the (signed) sparse boundary
+@D Loop on faces to construct the (signed) sparse boundary2
 @{
 # Loop on faces
 for f=1:length(FE)
@@ -191,7 +191,7 @@ The assembly of the whole function \texttt{boundary2(FV,EV)} is given below.
 @{
 @< Local temporary storage function @>
 @< Initialization of the (signed) sparse boundary @>
-    @< Loop on faces @>
+    @< Loop on faces to construct the (signed) sparse boundary2 @>
     spboundary2 = sparse(I,J,V)
     return spboundary2
 end
