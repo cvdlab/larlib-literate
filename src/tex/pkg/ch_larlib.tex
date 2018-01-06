@@ -1,10 +1,126 @@
 \chapter{Module overview}
 
+
+
+%===============================================================================
+\section{Data transforms and boundary operators}\label{sec:boundary}
+%===============================================================================
+
+In this section we provide some Julia functions to compute (boundary) operator representations starting from other data representations, i.e., generally speaking, starting from one/two incidence relations.
+
+\paragraph{Sparse characteristic matrices $M_p$}
+
+The generic function \texttt{characteristicMatrix} produces a compressed sparse column representation of a single incidence relation, i.e.~the associated characteristic matrix $M_p$ In this code we use $p=2$ and \texttt{FV} as parameter name, but it may refer to any other incidence relation as actual value. The function employs a COO (coordinate) method to build the sparse matrix, i.e.~starts from a triple of arrays for \texttt{I,J,V} values.
+
+
+%-------------------------------------------------------------------------------
+@D Computation of sparse characteristic matrices $M_p$
+@{
+# Characteristic matrix $M_2$, i.e. M(FV)
+function characteristicMatrix(FV)
+	I,J,V = Int64[],Int64[],Int8[] 
+	for f=1:length(FV)
+		for k in FV[f]
+			push!(I,f)
+			push!(J,k)
+			push!(V,1)
+		end
+	end
+	M_2 = sparse(I,J,V)
+	return M_2
+end
+@}
+%-------------------------------------------------------------------------------
+
+
+Hence we get the sparse matrix \texttt{cscEV}, shown in Figure~\ref{fig:intro-0}, by 
+{\small\begin{verbatim}
+cscEV = characteristicMatrix(EV)
+\end{verbatim}}
+
+\paragraph{Boundary matrix $[\partial_1] = [\delta_0]^\top$}
+
+It is worth noting that the matrix $M_1=\texttt{cscEV}$ previously computed is very similar to the operator matrix $[\delta_0]$, but with elements in $\{-1,0,1\}$ instead than in $\{0,1\}$. The computation is than easily done, by using the fact that the 1-cell is written as oriented 0-chains $\eta=\nu_k - \nu_h$, with $k>h$, and hence in coordinates we have $\texttt{spboundary1}[k,e] = 1$ and $\texttt{spboundary1}[k,e] = -1$.
+
+%-------------------------------------------------------------------------------
+@D Computation of (signed) sparse boundary $C_1 \to C_0$
+@{
+# Computation of sparse boundary $C_1 \to C_0$
+function boundary1(EV)
+	spboundary1 = characteristicMatrix(EV)'
+	for e = 1:length(EV)
+		spboundary1[EV[e][1],e] = -1
+	end
+	return spboundary1
+end
+@}
+%-------------------------------------------------------------------------------
+
+In this case we get the compressed sparse column matrix representation $\partial_1$, shown dense in Figure~\ref{fig:intro-2}, by computing
+\[
+\partial_1 = \small\texttt{boundary1(EV)}
+\]
+\begin{figure}[htbp] %  figure placement: here, top, bottom, or page
+{\footnotesize\begin{verbatim}
+julia> julia> full(boundary1(EV))
+12×20 Array{Int8,2}:
+ -1   0   0   0   0   0  -1   0   0   0   0   0  -1   0   0   0   0   0   0   0
+  1   0   0   0   0   0   0  -1   0   0   0   0   0  -1   0   0   0   0   0   0
+  0  -1   0   0   0   0   1   0   0   0   0   0   0   0  -1   0   0   0   0   0
+  0   1   0   0   0   0   0   1   0   0   0   0   0   0   0  -1   0   0   0   0
+  0   0  -1   0   0   0   0   0  -1   0   0   0   1   0   0   0  -1   0   0   0
+  0   0   1   0   0   0   0   0   0  -1   0   0   0   1   0   0   0  -1   0   0
+  0   0   0  -1   0   0   0   0   1   0   0   0   0   0   1   0   0   0  -1   0
+  0   0   0   1   0   0   0   0   0   1   0   0   0   0   0   1   0   0   0  -1
+  0   0   0   0  -1   0   0   0   0   0  -1   0   0   0   0   0   1   0   0   0
+  0   0   0   0   1   0   0   0   0   0   0  -1   0   0   0   0   0   1   0   0
+  0   0   0   0   0  -1   0   0   0   0   1   0   0   0   0   0   0   0   1   0
+  0   0   0   0   0   1   0   0   0   0   0   1   0   0   0   0   0   0   0   1
+\end{verbatim}}
+   \caption{Dense characteristic matrix \texttt{cscFV} for the incidence \texttt{FV} of the small complex in Figure~\ref{fig:intro-1}}
+   \label{fig:intro-2}
+\end{figure}
+
+
+\paragraph{Boundary matrix $[\partial_2] = [\delta_1]^\top$}
+
+The matrix of the unsigned operator $\partial_2$ is computed here, according to the method introduced in~\cite{}. In particular, the two sparse incidence matrices \texttt{cscFV} and \texttt{cscEV} are first computed, and the product matrix in \texttt{temp} codifies, for any pair $(i,j)$ of indices the number of vertices shared between the  $i$-th 2-cell and the $j$-th 1-cell; when this number is equal to 2, the $j$-th 1-cell belongs to the boundary of the $i$-th 2-cell, so providing a triple $(i,j,1)$ to be inserted in the COO representation of \texttt{sp_uboundary2}, and finally in its CSC representation.
+
+%-------------------------------------------------------------------------------
+@D Computation of (unsigned) sparse boundary $C_2 \to C_1$
+@{
+# Computation of sparse uboundary2
+function uboundary2(FV,EV)
+	cscFV = characteristicMatrix(FV)
+	cscEV = characteristicMatrix(EV)
+	temp = cscFV * cscEV'
+	I,J,V = Int64[],Int64[],Int8[]
+	for j=1:size(temp,2)
+		for i=1:size(temp,1)
+			if temp[i,j] == 2
+    			push!(I,i)
+    			push!(J,j)
+    			push!(V,1)
+			end
+		end
+	end
+	sp_uboundary2 = sparse(I,J,V)
+	return sp_uboundary2
+end
+@}
+%-------------------------------------------------------------------------------
+
+
+
+
 @O lib/jl/LARLIB.jl
 @{module LARLIB
 
     @< LAR imports @>
     @< LAR types @>
+	@< Computation of sparse characteristic matrices $M_p$ @>
+	@< Computation of (signed) sparse boundary $C_1 \to C_0$ @>
+	@< Computation of (unsigned) sparse boundary $C_2 \to C_1$ @>
 
     include("./utilities.jl")
     include("./minimal_cycles.jl")
