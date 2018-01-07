@@ -233,6 +233,29 @@ end
 @}
 %-------------------------------------------------------------------------------
 
+\paragraph{Collect one or more LAR models in a single model}
+
+The goal of the function \texttt{collection2model} is to store a collection of LAR models (i.e.~triples (W,FW,EW)) into a single LAR model, by concatenation of vertex arrays, and concatenation of incidence relations, properly shifted.
+The input type is \texttt{Array{Array{Array,1},1}}, the output type is \texttt{Tuple{Array{Float64,2},Array{Array{Int64,1},1},Array{Array{Int64,1},1}}}.
+Of course, the result may not be the LAR representation of a cellular complex, since some cells may intersect out of boundaries.
+
+%-------------------------------------------------------------------------------
+@D Collect LAR models in a single LAR model
+@{# Collect LAR models in a single LAR model
+function collection2model(collection)
+	W,FW,EW = collection[1]
+	shiftV = size(W,2)
+	for k=2:length(collection)
+		V,FV,EV = collection[k]
+		W = [W V]
+		FW = [FW; FV + shiftV]
+		EW = [EW; EV + shiftV]
+		shiftV = size(W,2)
+	end
+	return W,FW,EW
+end
+@}
+%-------------------------------------------------------------------------------
 
 
 @O lib/jl/LARLIB.jl
@@ -245,6 +268,7 @@ end
 	@< Computation of (unsigned) sparse boundary $C_2 \to C_1$ @>
 	@< Computation of (signed) sparse boundary $C_2 \to C_1$ @>
 	@< Chain 3-complex construction @>
+	@< Collect LAR models in a single LAR model @>
 
 	include("./utilities.jl")
 	include("./minimal_cycles.jl")
