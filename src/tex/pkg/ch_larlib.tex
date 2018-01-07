@@ -124,8 +124,8 @@ The construction algorithm may be split into two phases: the initialization and 
 @{
 # Initialization
 function boundary2(FV,EV)
-    sp_u_boundary2 = uboundary2(FV,EV)
-    larEV = characteristicMatrix(EV)
+    sp_u_boundary2 = LARLIB.uboundary2(FV,EV)
+    larEV = LARLIB.characteristicMatrix(EV)
     # unsigned incidence relation
     FE = [findn(sp_u_boundary2[f,:]) for f=1:size(sp_u_boundary2,1) ]
     I,J,V = Int64[],Int64[],Int8[]
@@ -158,8 +158,8 @@ for f=1:length(FE)
     fedges = Set(FE[f])
     next = pop!(fedges)
     col = 1
-    vpivot = infos[4,col]
     infos = zeros(Int64,(4,length(FE[f])))
+    vpivot = infos[4,col]
     vpivot = columninfo(infos,EV,next,col)
     while fedges != Set()
         nextedge = intersect(fedges, Set(vedges[vpivot]))
