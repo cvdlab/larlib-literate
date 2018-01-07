@@ -198,6 +198,41 @@ end
 @}
 %-------------------------------------------------------------------------------
 
+%===============================================================================
+\section{Chain complex construction}\label{sec:chaincomplex}
+%===============================================================================
+In this section we introduce the main function used to construct the chain complex of a space arrangement starting from a LAR input that may contain one or more cellular complexes.
+The input is a standard LAR model, i.e., a triple with vertex coordinates, and incidennce realtions of 2-cells and 1-cells with vertices.
+The output is a triple made by new \emph{vertices}, the new \emph{bases} for 1-, 2-, and 3-cells, and the signed boundary operators $\partial_1, \partial_2, \partial_3$.
+%-------------------------------------------------------------------------------
+@D Chain 3-complex construction
+@{# Chain 3-complex construction
+function chaincomplex(W,FW,EW)
+    V = convert(Array{Float64,2},W')
+    EV = characteristicMatrix(EW)
+    FE = boundary2(FW,EW)
+    V,cscEV,cscFE,cscCF = LARLIB.spatial_arrangement(V,EV,FE)
+    ne,nv = size(cscEV)
+    nf = size(cscFE,1)
+    nc = size(cscCF,1)
+    EV = [findn(cscEV[e,:]) for e=1:ne]
+    FV = [collect(Set(vcat([EV[e] for e in findn(cscFE[f,:])]...)))  for f=1:nf]
+    CV = [collect(Set(vcat([FV[f] for f in findn(cscCF[c,:])]...)))  for c=2:nc]
+    function ord(cells)
+        return [sort(cell) for cell in cells]
+    end
+    temp = copy(cscEV')
+    for k=1:size(temp,2)
+        h = findn(temp[:,k])[1]
+        temp[h,k] = -1
+    end    
+    cscEV = temp'
+    bases, coboundaries = (ord(EV),ord(FV),ord(CV)), (cscEV,cscFE,cscCF)
+    return V',bases,coboundaries
+end
+@}
+%-------------------------------------------------------------------------------
+
 
 
 @O lib/jl/LARLIB.jl
@@ -209,6 +244,7 @@ end
 	@< Computation of (signed) sparse boundary $C_1 \to C_0$ @>
 	@< Computation of (unsigned) sparse boundary $C_2 \to C_1$ @>
 	@< Computation of (signed) sparse boundary $C_2 \to C_1$ @>
+	@< Chain 3-complex construction @>
 
 	include("./utilities.jl")
 	include("./minimal_cycles.jl")
