@@ -176,7 +176,7 @@ The characteristic matrix \texttt{cscFV} for the incidence \texttt{FV} of the co
 \begin{center}
 \begin{minipage}[c]{0.5\textwidth}
 \small\begin{verbatim}
-julia> full(characteristicMatrix(FV))
+julia> full(LARLIB.characteristicMatrix(FV))
 11x12 Array{Int8,2}:
  1  1  1  1  0  0  0  0  0  0  0  0
  0  0  0  0  1  1  1  1  0  0  0  0
@@ -205,14 +205,14 @@ julia> full(characteristicMatrix(FV))
 
 In this case we get the Compressed Sparse Column matrix representation $[\partial_2]$ of the unsigned operator, i.e. with values in $\Z_2=\{0,1\}$, shown \emph{dense} in Figure~\ref{fig:intro-3}, by computing
 \[
-\partial_2 = \small\texttt{uboundary2(FV,EV)}.
+\partial_2 = \small\texttt{LARLIB.uboundary2(FV,EV)}.
 \]
 The generated sparse matrix is shown dense in Figure~\ref{fig:intro-3}.
 Just notice that in Example~\ref{ex:boundary1} there are eleven 2-cells and twenty 1-cells, and that such ordered bases of 2-chains and 1-chains, respectively, are orderly associated to the rows and to the columns of $[\partial_2]$
 
 \begin{figure}[htbp] %  figure placement: here, top, bottom, or page
 \small\begin{verbatim}
-julia> full(uboundary2(FV,EV))
+julia> full(LARLIB.uboundary2(FV,EV))
 11×20 Array{Int8,2}:
  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0  0  0
  0  0  1  1  0  0  0  0  1  1  0  0  0  0  0  0  0  0  0  0
@@ -226,7 +226,34 @@ julia> full(uboundary2(FV,EV))
  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  1  0  1  0
  0  0  0  0  0  0  0  0  0  1  0  1  0  0  0  0  0  1  0  1
 \end{verbatim}
-   \caption{Dense unsigned $[\partial_2]$ matrix for the small complex in Figure~\ref{fig:intro-1}}
+   \caption{Dense \emph{unsigned} $[\partial_2]$ matrix for the small complex in Figure~\ref{fig:intro-1}}
+   \label{fig:intro-3}
+\end{figure}
+
+\end{example}
+
+
+\begin{example}[Signed matrix of $\partial_2$]
+
+The computation of the matrix of the signed boundary operator, i.e. with values in $\Z_3\simeq\{-1,0,1\}$, is shown \emph{dense} in Figure~\ref{fig:intro-3}.
+
+\begin{figure}[htbp] %  figure placement: here, top, bottom, or page
+\small\begin{verbatim}
+julia> full(LARLIB.boundary2(FV,EV))
+11×20 Array{Int8,2}:
+ -1   1   0  0   0   0  1  -1   0   0   0   0   0   0  0   0   0   0   0  0
+  0   0  -1  1   0   0  0   0   1  -1   0   0   0   0  0   0   0   0   0  0
+  0   0   0  0  -1   1  0   0   0   0   1  -1   0   0  0   0   0   0   0  0
+ -1   0   1  0   0   0  0   0   0   0   0   0   1  -1  0   0   0   0   0  0
+  0  -1   0  1   0   0  0   0   0   0   0   0   0   0  1  -1   0   0   0  0
+  0   0   1  0  -1   0  0   0   0   0   0   0   0   0  0   0  -1   1   0  0
+  0   0   0  1   0  -1  0   0   0   0   0   0   0   0  0   0   0   0  -1  1
+  0   0   0  0   0   0  1   0  -1   0   0   0  -1   0  1   0   0   0   0  0
+  0   0   0  0   0   0  0  -1   0   1   0   0   0   1  0  -1   0   0   0  0
+  0   0   0  0   0   0  0   0   1   0  -1   0   0   0  0   0  -1   0   1  0
+  0   0   0  0   0   0  0   0   0   1   0  -1   0   0  0   0   0  -1   0  1
+\end{verbatim}
+   \caption{Dense \emph{signed} $[\partial_2]$ matrix for the small complex in Figure~\ref{fig:intro-1}}
    \label{fig:intro-3}
 \end{figure}
 

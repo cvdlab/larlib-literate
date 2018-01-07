@@ -47,7 +47,7 @@ It is worth noting that the matrix $M_1=\texttt{cscEV}$ previously computed is v
 @{
 # Computation of sparse boundary $C_1 \to C_0$
 function boundary1(EV)
-	spboundary1 = characteristicMatrix(EV)'
+	spboundary1 = LARLIB.characteristicMatrix(EV)'
 	for e = 1:length(EV)
 		spboundary1[EV[e][1],e] = -1
 	end
@@ -58,11 +58,11 @@ end
 
 In this case we get the compressed sparse column matrix representation $\partial_1$, shown dense in Figure~\ref{fig:intro-2}, by computing
 \[
-\partial_1 = \small\texttt{boundary1(EV)}
+\partial_1 = \small\texttt{LARLIB.boundary1(EV)}
 \]
 \begin{figure}[htbp] %  figure placement: here, top, bottom, or page
 {\footnotesize\begin{verbatim}
-julia> julia> full(boundary1(EV))
+julia> julia> full(LARLIB.boundary1(EV))
 12×20 Array{Int8,2}:
  -1   0   0   0   0   0  -1   0   0   0   0   0  -1   0   0   0   0   0   0   0
   1   0   0   0   0   0   0  -1   0   0   0   0   0  -1   0   0   0   0   0   0
@@ -153,13 +153,11 @@ end
 \subparagraph{Loop on faces}
 %-------------------------------------------------------------------------------
 @D Loop on faces to construct the (signed) sparse boundary2
-@{
-# Loop on faces
+@{# Loop on faces
 for f=1:length(FE)
     fedges = Set(FE[f])
     next = pop!(fedges)
     col = 1
-	infos = zeros(Int64,(4,length(FE[f])))
     vpivot = infos[4,col]
     infos = zeros(Int64,(4,length(FE[f])))
     vpivot = columninfo(infos,EV,next,col)
