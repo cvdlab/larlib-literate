@@ -268,7 +268,7 @@ The following higher-level function \texttt{facetriangulation} computes this tri
 %-------------------------------------------------------------------------------
 @D Triangulation of a single facet
 @{# Triangulation of a single facet
-function facetriangulation(V,FV,cscFE,cscCF)
+function facetriangulation(V,FV,EV,cscFE,cscCF)
 	function facetrias(f)
 		vs = [V[:,v] for v in FV[f]]
 		vs_indices = [v for v in FV[f]]
@@ -316,7 +316,7 @@ The aim of \texttt{triangulate} is to produce the incidence relation \texttt{TV}
 @D Triangulation of the 2-skeleton
 @{# Triangulation of the 2-skeleton
 function triangulate(cf,V,FV,cscFE,cscCF)
-	mktriangles = LARLIB.facetriangulation(V,FV,cscFE,cscCF)
+	mktriangles = LARLIB.facetriangulation(V,FV,EV,cscFE,cscCF)
 	TV = Array{Int64,1}[]
 	for (f,sign) in zip(cf[1],cf[2])
 		triangles = mktriangles(f)
