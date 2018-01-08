@@ -238,6 +238,7 @@ end
 The goal of the function \texttt{collection2model} is to store a collection of LAR models (i.e.~triples (W,FW,EW)) into a single LAR model, by concatenation of vertex arrays, and concatenation of incidence relations, properly shifted.
 The input type is \texttt{Array{Array{Array,1},1}}, the output type is \texttt{Tuple{Array{Float64,2},Array{Array{Int64,1},1},Array{Array{Int64,1},1}}}.
 Of course, the result may not be the LAR representation of a cellular complex, since some cells may intersect out of boundaries.
+Actually, this function prepares the input to be submitted to the \texttt{chaincomplex} function, that provides to mutually intersect the 2-cells and to reconstruct the 3-cells using the topological gift-wrapping algorithm~\cite{DBLP:journals/corr/PaoluzziSD17}.
 
 %-------------------------------------------------------------------------------
 @D Collect LAR models in a single LAR model
@@ -257,6 +258,79 @@ end
 @}
 %-------------------------------------------------------------------------------
 
+\paragraph{Triangulation of a single 2-cell embedded in 3D}
+
+The 2-cells of a LAR cellular complex may have any kind of geometry or topology, provided they are connected. In other words, the 2-cells may be either convex or no-convex, and either simply connected or multiply connected, i.e.~containing any finite number of internal holes. Of course, the topological gift-wrapping algorithm~cite{DBLP:journals/corr/PaoluzziSD17}, introduced to extract the basis of 3-cells as minimal cycles of 2-cells,
+has no problems in handling such general kind of 2-cells. Conversely, in order to draw the complex, or to show its shape into an interactive viewer, a decomposition of the boundary of every 3-cell into a set of triangles (triple of 3-points) is needed, since this one is the only data structure accepted by the graphics hardware.
+
+The following higher-level function \texttt{facetriangulation} computes this triangulation for the generic 2-cell indexed by \texttt{f}, taking as input (for the first application) also the vertices \texttt{V}, the incidence relation \texttt{FV}, and the coboundary operators $\delta_1$ and $\delta_2$. In particular, for each 2-cell $f$, a \emph{local} LAR representation \texttt{vts} is generated using a vertex dictionary \texttt{vdict} and its inverse map \texttt{dictv}. The 2-face is trasformed in the 2-subspace $z=0$ using the transformation matrix \texttt{inv(M)}, in order to prepare the types of data expected by the \texttt{TRIANGLE.constrained\_triangulation\_vertices} that performs a CDT (Constrained Delaunay Triangulation) algorithm so finally returning the incidence relation between triangle and (original) vertices named \texttt{mktriangles}.
+
+%-------------------------------------------------------------------------------
+@D Triangulation of a single facet
+@{# Triangulation of a single facet
+function facetriangulation(V,FV,cscFE,cscCF)
+	function facetrias(f)
+		vs = [V[:,v] for v in FV[f]]
+		vs_indices = [v for v in FV[f]]
+		vdict = Dict([(i,index) for (i,index) in enumerate(vs_indices)])
+		dictv = Dict([(index,i) for (i,index) in enumerate(vs_indices)])
+		es = findn(cscFE[f,:])
+	
+		vts = [v-vs[1] for v in vs]
+	
+		v1 = vts[2]
+		v2 = vts[3]
+		v3 = cross(v1,v2)
+		err, i = 1e-8, 1
+		while norm(v3) < err
+			v2 = vts[3+i]
+			i += 1
+			v3 = cross(v1,v2)
+		end	
+	
+		M = [v1 v2 v3]
+
+		vs_2D = hcat([(inv(M)*v)[1:2] for v in vts]...)'
+		pointdict = Dict([(vs_2D[k,:],k) for k=1:size(vs_2D,1)])
+		edges = hcat([[dictv[v] for v in EV[e]]  for e in es]...)'
+	
+		trias = TRIANGLE.constrained_triangulation_vertices(
+			vs_2D, collect(1:length(vs)), edges)
+
+		triangles = [[pointdict[t[1,:]],pointdict[t[2,:]],pointdict[t[3,:]]] 
+			for t in trias]
+		mktriangles = [[vdict[t[1]],vdict[t[2]],vdict[t[3]]] for t in triangles]
+		return mktriangles
+	end
+	return facetrias
+end
+@}
+%-------------------------------------------------------------------------------
+
+\paragraph{Triangulation of the whole 2-skeleton}
+
+The \texttt{cf} tuple, that constitute the main input of the \texttt{triangulate} function, contains the COO representation of the signed sparse matrix $[\delta_2]$.
+The aim of \texttt{triangulate} is to produce the incidence relation \texttt{TV} between the oriented triangles \texttt{T} and the vertices \texttt{V} of the 3-skeleton of our cellular complex.
+
+%-------------------------------------------------------------------------------
+@D Triangulation of the 2-skeleton
+@{# Triangulation of the 2-skeleton
+function triangulate(cf,V,FV,cscFE,cscCF)
+	mktriangles = LARLIB.facetriangulation(V,FV,cscFE,cscCF)
+	TV = Array{Int64,1}[]
+	for (f,sign) in zip(cf[1],cf[2])
+		triangles = mktriangles(f)
+		if sign == 1
+			append!(TV,triangles )
+		elseif sign == -1
+			append!(TV,[[t[2],t[1],t[3]] for t in triangles] )
+		end
+	end
+	return TV
+end
+@}
+%-------------------------------------------------------------------------------
+
 
 @O lib/jl/LARLIB.jl
 @{module LARLIB
@@ -269,6 +343,8 @@ end
 	@< Computation of (signed) sparse boundary $C_2 \to C_1$ @>
 	@< Chain 3-complex construction @>
 	@< Collect LAR models in a single LAR model @>
+	@< Triangulation of a single facet @>
+	@< Triangulation of the 2-skeleton @>
 
 	include("./utilities.jl")
 	include("./minimal_cycles.jl")
@@ -420,6 +496,27 @@ include("./utilities.jl")
    
    @@testset "collection2model Tests" begin
       @@test typeof(collection)==Array{Array{Array,1},1}
+   end
+
+   @@testset "facetriangulation Tests" begin
+      V,(VV,EV,FV,CV) = LARLIB.larCuboids([2,2,1],true)
+      W,FW,EW = copy(V),copy(FV),copy(EV)
+      collection = Array{Array,1}[]
+      for k=1:2
+    	 W,FW,EW = copy(W)+.5,copy(FV),copy(EV)
+    	 append!(collection, [[W,FV,EV]])
+      end
+      V,FV,EV = LARLIB.collection2model(collection)
+      V,bases,coboundaries = LARLIB.chaincomplex(V,FV,EV)
+      EV,FV,CV = bases
+      cscEV,cscFE,cscCF = coboundaries
+      TV = triangulate((1:length(FV),ones(length(FV))),V,FV,cscFE,cscCF)
+      @@test typeof(TV)==Array{Array{Int64,1},1}
+      @@test typeof((V,FV))==Tuple{Array{Float64,2},Array{Array{Int64,1},1}}
+      @@test typeof((1:length(FV),ones(length(FV))))==Tuple{UnitRange{Int64},Array{Float64,1}}
+      @@testset "$triangle" for triangle in TV
+         @@test length(triangle)==3
+      end
    end
 end
 @}
