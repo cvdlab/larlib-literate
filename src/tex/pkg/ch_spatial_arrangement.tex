@@ -264,28 +264,10 @@ matrix correctly using the new vertex indices.
     for ei in FE[fi, :].nzind
 ] for fi in 1:facenum]
 
+nFE = spzeros(Int8, facenum, size(nEV, 1))
 
-visited = []
-function filter_fn(face)
-
-    verts = []
-    map(e->verts = union(verts, collect(e)), face)
-    verts = Set(verts)
-
-    if !(verts in visited)
-        push!(visited, verts)
-        return true
-    end
-    return false
-end
-
-nfaces = filter(filter_fn, faces)
-
-nfacenum = length(nfaces)
-nFE = spzeros(Int8, nfacenum, size(nEV, 1))
-
-for fi in 1:nfacenum
-    for edge in nfaces[fi]
+for fi in 1:facenum
+    for edge in faces[fi]
         ei = etuple2idx[Tuple{Int, Int}(sort(collect(edge)))]
         nFE[fi, ei] = sign(edge[2] - edge[1])
     end
