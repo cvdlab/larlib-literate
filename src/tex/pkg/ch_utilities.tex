@@ -149,6 +149,94 @@ end
 end
 @}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{External cell individuation}
+\label{sec:external_cell}
+To do this we iterate over the
+vertices of the passed \texttt{EV} to find four vertices: the two with biggest
+$x_1$ and $x_2$ coordinates (\texttt{maxv\_x1} and \texttt{maxv\_x2}) and the 
+two with the smallest one (\texttt{minv\_x1} and \texttt{minv\_x2}). 
+Then we check which face the two vertices have in common. 
+
+It can happen that the two vertices have more than one face in common
+(for example when a biconnected component is made up only by one face);
+in this case we simply pick the cell with negative area. The area
+computation routines are located into section \ref{sec:face_area},
+
+
+@D Utilities
+@{function get_external_cell(V::Verts, EV::Cells, FE::Cells)
+    FV = abs.(FE)*EV
+    vs = sparsevec(mapslices(sum, abs.(EV), 1)).nzind
+    minv_x1 = maxv_x1 = minv_x2 = maxv_x2 = pop!(vs)
+    for i in vs
+        if V[i, 1] > V[maxv_x1, 1]
+            maxv_x1 = i
+        elseif V[i, 1] < V[minv_x1, 1]
+            minv_x1 = i
+        end
+        if V[i, 2] > V[maxv_x2, 2]
+            maxv_x2 = i
+        elseif V[i, 2] < V[minv_x2, 2]
+            minv_x2 = i
+        end
+    end
+    cells = intersect(
+        FV[:, minv_x1].nzind, 
+        FV[:, maxv_x1].nzind,
+        FV[:, minv_x2].nzind,
+        FV[:, maxv_x2].nzind
+    )
+    if length(cells) == 1
+        return cells[1]
+    else
+        for c in cells
+            if face_area(V, EV, FE[c, :]) < 0
+                return c
+            end
+        end
+    end
+end
+@}
+
+\subsubsection{Tests}
+\begin{figure}[h]
+    \centering
+    \includegraphics{./img/ch2-externcell.pdf}
+    \caption{This biconnected component has three faces. The external one is the number 3.
+    This is a particularly difficult case because the most "external" vertices of face 2
+    are in common with the external cell.}
+\end{figure}
+
+@D Utilities tests
+@{@@testset "External cell individuation" begin
+    V = [ .5 .5;  1.5   1;  1.5  2; 
+         2.5  2;  2.5   1;  3.5 .5;
+         3.5  3;    2 2.5;   .5  3]
+
+    EV = Int8[-1  1  0  0  0  0  0  0  0;
+               0 -1  1  0  0  0  0  0  0;
+               0  0 -1  1  0  0  0  0  0;
+               0  0  0 -1  1  0  0  0  0;
+               0  0  0  0 -1  1  0  0  0;
+               0  0  0  0  0 -1  1  0  0;
+               0  0  0  0  0  0 -1  1  0;
+               0  0  0  0  0  0  0 -1  1;
+              -1  0  0  0  0  0  0  0  1;
+               0 -1  0  0  1  0  0  0  0]
+    EV = sparse(EV)
+    
+    FE = Int8[ 0 -1 -1 -1  0  0  0  0  0  1;
+               1  1  1  1  1  1  1  1 -1  0;
+              -1  0  0  0 -1 -1 -1 -1  1 -1]
+    FE = sparse(FE)
+
+    @@test LARLIB.get_external_cell(V, EV, FE) == 3
+end
+@}
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%
 \section{Skeletal merge}
 \label{sec:skel_merge}
