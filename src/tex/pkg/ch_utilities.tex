@@ -197,6 +197,42 @@ computation routines are located into section \ref{sec:face_area},
         end
     end
 end
+
+function get_external_cell(V::Verts, EV::Cells, FE::Cells, CF::Cells)
+    CV = abs.(CF)*abs.(FE)*EV
+    vs = sparsevec(mapslices(sum, abs.(EV), 1)).nzind
+    minv_x1 = maxv_x1 = minv_x2 = maxv_x2 = minv_x3 = maxv_x3 = pop!(vs)
+    for i in vs
+        if V[i, 1] > V[maxv_x1, 1]
+            maxv_x1 = i
+        elseif V[i, 1] < V[minv_x1, 1]
+            minv_x1 = i
+        end
+        if V[i, 2] > V[maxv_x2, 2]
+            maxv_x2 = i
+        elseif V[i, 2] < V[minv_x2, 2]
+            minv_x2 = i
+        end
+        if V[i, 3] > V[maxv_x3, 3]
+            maxv_x3 = i
+        elseif V[i, 3] < V[minv_x3, 3]
+            minv_x3 = i
+        end
+    end
+    cells = intersect(
+        CV[:, minv_x1].nzind, 
+        CV[:, maxv_x1].nzind,
+        CV[:, minv_x2].nzind,
+        CV[:, maxv_x2].nzind,
+        CV[:, minv_x3].nzind,
+        CV[:, maxv_x3].nzind
+    )
+    if length(cells) == 1
+        return cells[1]
+    else
+        println("More than one cell found. Returning the first one.")
+    end
+end
 @}
 
 \subsubsection{Tests}
