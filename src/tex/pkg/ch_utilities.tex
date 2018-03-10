@@ -231,6 +231,7 @@ function get_external_cell(V::Verts, EV::Cells, FE::Cells, CF::Cells)
         return cells[1]
     else
         println("More than one cell found. Returning the first one.")
+        return cells[1]
     end
 end
 @}
@@ -271,7 +272,8 @@ end
         @@test LARLIB.get_external_cell(V, EV, FE) == 3
     end
     @@testset "d=3"
-        V = [0 0 0; 1 0 0; 1 1 0; 0 1 0; 1 1 1] 
+        V = [0. 0 0; 1 0 0; 1 1 0; 0 1 0; 1 1 1]
+        V = V*[2 0 0; 0 cos(pi/4) -sin(pi/4); 0 sin(pi/4) cos(pi/4)]
 
         EV = Int8[
             1 1 0 0 0;
